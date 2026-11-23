@@ -5,9 +5,9 @@ $db   = getenv('MYSQLDATABASE') ?: 'railway';
 $user = getenv('MYSQLUSER') ?: 'root';
 $pass = getenv('MYSQLPASSWORD') ?: '';
 
+define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin123');
 define('SMM_API_URL', getenv('SMM_API_URL') ?: 'https://seuprovedor.com');
 define('SMM_API_KEY', getenv('SMM_API_KEY') ?: 'SUA_CHAVE_API_SMM');
-define('MP_ACCESS_TOKEN', getenv('MP_ACCESS_TOKEN') ?: 'SEU_TOKEN_MERCADO_PAGO');
 
 try {
     $pdo = new PDO("mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4", $user, $pass, [
@@ -15,7 +15,6 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
-    // Cria as tabelas automaticamente se ainda não existirem
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS servicos (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -47,16 +46,20 @@ try {
         );
     ");
 
-    // Insere os serviços iniciais caso a tabela esteja vazia
     if ((int)$pdo->query("SELECT COUNT(*) FROM servicos")->fetchColumn() === 0) {
         $pdo->exec("
             INSERT INTO servicos (provider_service_id, tipo, qualidade, titulo, descricao, preco_por_mil, minimo) VALUES
             (101, 'Visualizacoes', 'Exclusivo', 'Visualizações para Instagram', 'Escolha a quantidade e informe o link do post. Não solicitamos sua senha.', 4.70, 1000),
             (102, 'Seguidores', 'Avancado', 'Seguidores Mundiais Avançados', 'Escolha a quantidade e informe seu perfil ou link. Não solicitamos sua senha.', 3.97, 1000),
             (103, 'Seguidores', 'Exclusivo', 'Seguidores Brasileiros Exclusivos', 'Escolha a quantidade e informe seu perfil ou link. Não solicitamos sua senha.', 6.75, 1000),
-            (104, 'Curtidas', 'Exclusivo', 'Curtidas Brasileiras Reais (Exclusivo)', 'Escolha a quantidade e informe o link do post. Não solicitamos sua senha.', 5.99, 1000)
+            (104, 'Curtidas', 'Exclusivo', 'Curtidas Brasileiras Reais (Exclusivo)', 'Escolha a quantidade e informe o link do post.', 5.99, 1000),
+            (105, 'Curtidas', 'Premium', 'Curtidas Brasileiras Premium', 'Escolha a quantidade e informe o link do post.', 4.57, 1000),
+            (106, 'Curtidas', 'Avancado', 'Curtidas Mundiais Avançado', 'Escolha a quantidade e informe o link do post.', 3.00, 1000),
+            (107, 'Seguidores', 'Premium', 'Seguidores Brasileiros Premium', 'Deixe o perfil público. Insira o link do perfil.', 5.75, 1000),
+            (108, 'Visualizacoes', 'Avancado', 'Visualizações em vídeo', 'Escolha a quantidade e o link do post. Não solicitamos sua senha.', 3.55, 1000),
+            (109, 'Visualizacoes', 'Premium', 'Visualizações em vídeo BR', 'Escolha sua quantidade e dê o próximo passo para o seu perfil.', 3.75, 1000)
         ");
     }
 } catch (PDOException $e) {
-    die("Erro ao conectar ao banco de dados: " . $e->getMessage());
+    die("Erro no banco de dados: " . $e->getMessage());
 }
