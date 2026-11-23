@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-require_once 'config.php';
+require_once 'efi.php';
 
 $acao = $_GET['acao'] ?? '';
 
@@ -29,18 +29,26 @@ if ($acao === 'criar_pedido' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $valor_total = round(($servico['preco_por_mil'] / 1000) * $quantidade, 2);
-    $codigo = 'UP-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
-    $pix_copia_cola = "00020126580014br.gov.bcb.pix0136pix-pedido-{$codigo}520400005303986540" . number_format($valor_total, 2, '.', '') . "5802BR";
+    // A Efí exige txid alfanumérico entre 26 e 35 caracteres
+    $txid = 'BS' . bin2hex(random_bytes(14));
 
-    $ins = $pdo->prepare("INSERT INTO pedidos (codigo_rastreio, servico_id, link_destino, quantidade, valor_total, email_cliente, pix_copia_cola) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $ins->execute([$codigo, $servico_id, $link, $quantidade, $valor_total, $email, $pix_copia_cola]);
+    try {
+        $cob = efiCriarCobrancaPix($txid, $valor_total, "Pedido {$txid} - {$servico['titulo']}");
+        $pix_copia_cola = $cob['pixCopiaECola'];
 
-    echo json_encode([
-        'sucesso' => true,
-        'codigo' => $codigo,
-        'valor_total' => number_format($valor_total, 2, ',', '.'),
-        'pix_copia_cola' => $pix_copia_cola
-    ]);
+        $ins = $pdo->prepare("INSERT INTO pedidos (codigo_rastreio, servico_id, link_destino, quantidade, valor_total, email_cliente, pix_copia_cola) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $ins->execute([$txid, $servico_id, $link, $quantidade, $valor_total, $email, $pix_copia_cola]);
+
+        echo json_encode([
+            'sucesso'        => true,
+            'codigo'         => $txid,
+            'valor_total'    => number_format($valor_total, 2, ',', '.'),
+            'pix_copia_cola' => $pix_copia_cola
+        ]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['erro' => $e->getMessage()]);
+    }
     exit;
 }
 
