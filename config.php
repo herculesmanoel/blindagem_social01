@@ -65,6 +65,16 @@ try {
             status TEXT DEFAULT 'pendente',
             criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS tickets_suporte (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL,
+            assunto TEXT NOT NULL,
+            mensagem TEXT NOT NULL,
+            resposta_admin TEXT NULL,
+            status TEXT DEFAULT 'aberto',
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     ");
 
     if ((int)$pdo->query("SELECT COUNT(*) FROM servicos")->fetchColumn() === 0) {
@@ -79,7 +89,6 @@ try {
         ");
     }
 
-    // Cria automaticamente a conta admin123 no banco para login normal
     $chkAdmin = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE usuario = 'admin123'")->fetchColumn();
     if ((int)$chkAdmin === 0) {
         $pdo->prepare("INSERT INTO usuarios (nome, usuario, email, senha_hash, saldo, api_key) VALUES (?, ?, ?, ?, ?, ?)")
