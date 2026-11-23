@@ -1,59 +1,42 @@
 <?php
-$mysqlUrl = getenv('MYSQL_PUBLIC_URL') ?: getenv('MYSQL_URL') ?: getenv('DATABASE_URL');
-
-if ($mysqlUrl) {
-    $url  = parse_url($mysqlUrl);
-    $host = $url['host'] ?? '127.0.0.1';
-    $port = $url['port'] ?? 3306;
-    $db   = ltrim($url['path'] ?? '/railway', '/');
-    $user = $url['user'] ?? 'root';
-    $pass = $url['pass'] ?? '';
-} else {
-    $host = getenv('MYSQLHOST') ?: '127.0.0.1';
-    $port = getenv('MYSQLPORT') ?: '3306';
-    $db   = getenv('MYSQLDATABASE') ?: 'railway';
-    $user = getenv('MYSQLUSER') ?: 'root';
-    $pass = getenv('MYSQLPASSWORD') ?: '';
-}
-
 define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin123');
 define('SMM_API_URL', getenv('SMM_API_URL') ?: 'https://seuprovedor.com');
 define('SMM_API_KEY', getenv('SMM_API_KEY') ?: 'SUA_CHAVE_API_SMM');
 
 try {
-    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4", $user, $pass, [
+    $pdo = new PDO("sqlite:" . __DIR__ . "/banco.sqlite", null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS servicos (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            provider_service_id INT NOT NULL,
-            plataforma VARCHAR(50) DEFAULT 'Instagram',
-            tipo ENUM('Seguidores', 'Curtidas', 'Visualizacoes') NOT NULL,
-            qualidade ENUM('Avancado', 'Premium', 'Exclusivo') NOT NULL,
-            titulo VARCHAR(120) NOT NULL,
-            descricao VARCHAR(255) NOT NULL,
-            preco_por_mil DECIMAL(10, 2) NOT NULL,
-            minimo INT DEFAULT 100,
-            maximo INT DEFAULT 50000,
-            ativo TINYINT(1) DEFAULT 1
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            provider_service_id INTEGER NOT NULL,
+            plataforma TEXT DEFAULT 'Instagram',
+            tipo TEXT NOT NULL,
+            qualidade TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            descricao TEXT NOT NULL,
+            preco_por_mil REAL NOT NULL,
+            minimo INTEGER DEFAULT 100,
+            maximo INTEGER DEFAULT 50000,
+            ativo INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS pedidos (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            codigo_rastreio VARCHAR(20) UNIQUE NOT NULL,
-            servico_id INT NOT NULL,
-            link_destino VARCHAR(255) NOT NULL,
-            quantidade INT NOT NULL,
-            valor_total DECIMAL(10, 2) NOT NULL,
-            email_cliente VARCHAR(150) NOT NULL,
-            status_pagamento ENUM('pendente', 'pago', 'cancelado') DEFAULT 'pendente',
-            status_entrega ENUM('aguardando', 'processando', 'concluido', 'erro') DEFAULT 'aguardando',
-            provider_order_id VARCHAR(50) NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_rastreio TEXT UNIQUE NOT NULL,
+            servico_id INTEGER NOT NULL,
+            link_destino TEXT NOT NULL,
+            quantidade INTEGER NOT NULL,
+            valor_total REAL NOT NULL,
+            email_cliente TEXT NOT NULL,
+            status_pagamento TEXT DEFAULT 'pendente',
+            status_entrega TEXT DEFAULT 'aguardando',
+            provider_order_id TEXT NULL,
             pix_copia_cola TEXT NULL,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     ");
 
@@ -72,5 +55,5 @@ try {
         ");
     }
 } catch (PDOException $e) {
-    die("Erro no banco de dados: " . $e->getMessage());
+    die("Erro no banco: " . $e->getMessage());
 }
