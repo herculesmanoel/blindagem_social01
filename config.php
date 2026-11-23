@@ -9,11 +9,11 @@ if ($mysqlUrl) {
     $user = $url['user'] ?? 'root';
     $pass = $url['pass'] ?? '';
 } else {
-    $host = getenv('MYSQLHOST') ?: getenv('MYSQL_HOST') ?: '127.0.0.1';
-    $port = getenv('MYSQLPORT') ?: getenv('MYSQL_PORT') ?: '3306';
-    $db   = getenv('MYSQLDATABASE') ?: getenv('MYSQL_DATABASE') ?: 'railway';
-    $user = getenv('MYSQLUSER') ?: getenv('MYSQL_USER') ?: 'root';
-    $pass = getenv('MYSQLPASSWORD') ?: getenv('MYSQL_PASSWORD') ?: '';
+    $host = getenv('MYSQLHOST') ?: '127.0.0.1';
+    $port = getenv('MYSQLPORT') ?: '3306';
+    $db   = getenv('MYSQLDATABASE') ?: 'railway';
+    $user = getenv('MYSQLUSER') ?: 'root';
+    $pass = getenv('MYSQLPASSWORD') ?: '';
 }
 
 define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin123');
