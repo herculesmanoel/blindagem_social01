@@ -8,7 +8,6 @@ define('SMM_API_URL', getenv('SMM_API_URL') ?: 'https://seuprovedor.com');
 define('SMM_API_KEY', getenv('SMM_API_KEY') ?: 'SUA_CHAVE_API_SMM');
 
 try {
-    // Usa o Volume persistente /data do Railway se estiver montado, evitando perder contas/saldos no deploy
     $dbDir = (is_dir('/data') && is_writable('/data')) ? '/data' : __DIR__;
     $pdo = new PDO("sqlite:" . $dbDir . "/banco.sqlite", null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -78,6 +77,13 @@ try {
             (202, 'TikTok', 'Visualizacoes', 'Avancado', 'Visualizações TikTok Rápidas', 'Aumente o alcance dos seus vídeos no TikTok.', 0.99, 1000),
             (301, 'YouTube', 'Visualizacoes', 'Exclusivo', 'Views YouTube Alta Retenção', 'Visualizações para ajudar a ranquear seu vídeo.', 8.90, 500)
         ");
+    }
+
+    // Cria automaticamente a conta admin123 no banco para login normal
+    $chkAdmin = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE usuario = 'admin123'")->fetchColumn();
+    if ((int)$chkAdmin === 0) {
+        $pdo->prepare("INSERT INTO usuarios (nome, usuario, email, senha_hash, saldo, api_key) VALUES (?, ?, ?, ?, ?, ?)")
+            ->execute(['Administrador', 'admin123', 'admin@blindagemsocial.com', password_hash('admin123', PASSWORD_DEFAULT), 100.00, bin2hex(random_bytes(16))]);
     }
 } catch (PDOException $e) {
     die("Erro no banco: " . $e->getMessage());
