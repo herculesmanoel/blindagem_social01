@@ -14,7 +14,7 @@ $abaAtiva = $_GET['aba'] ?? 'pedido';
 
 if (isset($_GET['sincronizar'])) {
     $abaAtiva = 'historico';
-    $pends = $pdo->prepare("SELECT * FROM pedidos WHERE usuario_id = ? AND status_entrega = 'processando' AND provider_order_id IS NOT NULL");
+    $pends = $pdo->prepare("SELECT * FROM pedidos WHERE usuario_id = ? AND status_entrega = 'processando' AND provider_order_id IS NOT NULL AND provider_order_id != ''");
     $pends->execute([$user['id']]);
     foreach ($pends->fetchAll() as $ped) {
         $ch = curl_init(SMM_API_URL);
@@ -22,7 +22,7 @@ if (isset($_GET['sincronizar'])) {
         $r = json_decode(curl_exec($ch), true);
         curl_close($ch);
         if (!empty($r['status'])) {
-            $st = strtolower($r['status']);
+            $st = strtolower(trim($r['status']));
             if ($st === 'completed') {
                 $pdo->prepare("UPDATE pedidos SET status_entrega = 'concluido' WHERE id = ?")->execute([$ped['id']]);
             } elseif ($st === 'canceled' || $st === 'refunded') {
@@ -113,7 +113,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($acao === 'enviar_suporte') {
         $abaAtiva = 'suporte';
-        $msgSucesso = 'Solicitação enviada! Nossa equipe responderá no seu e-mail cadastrado em instantes.';
+        $assunto  = trim($_POST['assunto'] ?? '');
+        $mensagem = trim($_POST['mensagem'] ?? '');
+        if ($assunto !== '' && $mensagem !== '') {
+            $pdo->prepare("INSERT INTO tickets_suporte (usuario_id, assunto, mensagem) VALUES (?, ?, ?)")
+                ->execute([$user['id'], $assunto, $mensagem]);
+            $msgSucesso = 'Solicitação enviada! Você verá a resposta do administrador abaixo assim que for respondida.';
+        }
     }
 }
 
@@ -183,133 +189,61 @@ foreach ($listaPedidos as $lp) {
 </style>
 </head>
 
-<body>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel VIP — Blindagem Social</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  body{background:#060608;color:#fafafa;min-height:100vh;display:flex;flex-direction:column}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:1180px;margin:0 auto;padding:0 20px;width:100%}
+  .gold{color:#fbbf24}
+  .live-bar{background:linear-gradient(90deg,#12100a,#1c1608,#12100a);border-bottom:1px solid rgba(251,191,36,.25);height:34px;display:flex;align-items:center;overflow:hidden;font-size:12px}
+  .live-track{display:flex;gap:48px;white-space:nowrap;animation:ticker 32s linear infinite;padding-left:100%}
+  .live-item{display:inline-flex;align-items:center;gap:8px;color:#e4e4e7}
+  .dot-live{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981}
+  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+  .topbar{background:#121215;border-bottom:1px solid #27272a;position:sticky;top:0;z-index:40}
+  .topbar-inner{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px}
+  .badge-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .saldo-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);padding:8px 14px;border-radius:12px;font-size:13px;font-weight:800;color:#fbbf24}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border-radius:12px;font-weight:800;font-size:13px;border:none;cursor:pointer;transition:.2s}
+  .btn-gold{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;box-shadow:0 6px 20px rgba(245,158,11,.22)}
+  .btn-gold:hover{filter:brightness(1.06)}
+  .btn-dark{background:#18181b;color:#e4e4e7;border:1px solid #27272a}
+  .btn-dark:hover{border-color:#fbbf24;color:#fbbf24}
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+  .stat-box{background:#121215;border:1px solid #27272a;border-radius:16px;padding:18px 20px}
+  .stat-box span{font-size:12px;color:#a1a1aa;display:block}
+  .stat-box strong{font-size:22px;font-weight:900;color:#fbbf24;margin-top:4px;display:block}
+  .menu-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;background:#121215;padding:8px;border-radius:16px;border:1px solid #27272a}
+  .tab-btn{padding:10px 16px;border-radius:11px;font-size:13px;font-weight:700;background:transparent;color:#a1a1aa;border:none;cursor:pointer;transition:.2s}
+  .tab-btn:hover{color:#fff}
+  .tab-btn.active{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b}
+  .panel-card{background:#121215;border:1px solid #27272a;border-radius:20px;padding:28px;margin-bottom:28px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:12px;color:#a1a1aa;margin-bottom:6px;font-weight:600}
+  .field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:12px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:14px;outline:none}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:#fbbf24}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .total-box{background:#09090b;border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center}
+  .alert-ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#34d399;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
+  .alert-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
+  th{color:#a1a1aa;font-weight:700;padding:12px;border-bottom:1px solid #27272a;font-size:12px;text-transform:uppercase}
+  td{padding:13px 12px;border-bottom:1px solid #1f1f23}
+  .status-badge{padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(245,158,11,.14);color:#fbbf24;text-transform:uppercase}
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+  @media(max-width:768px){.stats-row,.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
 
-<div class="live-bar">
-  <div class="live-track">
-    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de pedir <strong class="gold">1.000 Seguidores Instagram BR</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold">500 Curtidas Reais</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold">R$ 50,00 via PIX</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold">2.000 Seguidores TikTok</strong></span>
-  </div>
-</div>
-
-<header class="topbar">
-  <div class="container topbar-inner">
-    <a href="index.php" class="brand"><span class="badge-logo">B</span><span>Blindagem <span class="gold">Social</span></span></a>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <?php if ($user['usuario'] === 'admin123'): ?>
-        <a href="admin.php" class="btn btn-gold" style="padding:8px 14px;font-size:12px">⚙️ Controle Admin</a>
-      <?php endif; ?>
-      <div class="saldo-pill">Saldo: R$ <?= number_format($user['saldo'], 2, ',', '.') ?></div>
-      <span style="font-size:12px;color:#a1a1aa">@<?= htmlspecialchars($user['usuario']) ?></span>
-      <a href="auth.php?sair=1" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Sair</a>
-    </div>
-  </div>
-</header>
-
-<main class="container" style="flex:1;padding-bottom:40px">
-  <div class="stats-row">
-    <div class="stat-box"><span>Saldo Disponível</span><strong>R$ <?= number_format($user['saldo'], 2, ',', '.') ?></strong></div>
-    <div class="stat-box"><span>Pedidos Realizados</span><strong style="color:#fff"><?= count($listaPedidos) ?></strong></div>
-    <div class="stat-box"><span>Total Investido</span><strong style="color:#fff">R$ <?= number_format($totalGasto, 2, ',', '.') ?></strong></div>
-  </div>
-
-  <?php if ($msgSucesso): ?><div class="alert-ok">✓ <?= htmlspecialchars($msgSucesso) ?></div><?php endif; ?>
-  <?php if ($msgErro): ?><div class="alert-err">⚠ <?= htmlspecialchars($msgErro) ?></div><?php endif; ?>
-
-  <div class="menu-tabs">
-    <button type="button" class="tab-btn <?= $abaAtiva === 'pedido' ? 'active' : '' ?>" onclick="mudarAba('pedido', this)">🚀 Novo Pedido</button>
-    <button type="button" class="tab-btn <?= $abaAtiva === 'saldo' ? 'active' : '' ?>" onclick="mudarAba('saldo', this)">💳 Adicionar Saldo (PIX)</button>
-    <button type="button" class="tab-btn <?= $abaAtiva === 'historico' ? 'active' : '' ?>" onclick="mudarAba('historico', this)">📦 Meus Pedidos</button>
-    <button type="button" class="tab-btn <?= $abaAtiva === 'catalogo' ? 'active' : '' ?>" onclick="mudarAba('catalogo', this)">📋 Tabela de Serviços</button>
-    <button type="button" class="tab-btn <?= $abaAtiva === 'conta' ? 'active' : '' ?>" onclick="mudarAba('conta', this)">🔑 Conta & API</button>
-    <button type="button" class="tab-btn <?= $abaAtiva === 'suporte' ? 'active' : '' ?>" onclick="mudarAba('suporte', this)">💬 Suporte</button>
-  </div>
-
-  <!-- ABA 1: NOVO PEDIDO -->
-  <div id="aba-pedido" class="tab-pane <?= $abaAtiva === 'pedido' ? 'active' : '' ?>">
-    <div class="panel-card">
-      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Fazer Novo Pedido</h2>
-      <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Deixe o perfil em modo público antes de enviar. Nunca solicitamos sua senha.</p>
-
-      <form method="POST">
-        <input type="hidden" name="acao" value="novo_pedido">
-        <div class="field">
-          <label>Plataforma</label>
-          <select id="sel-plat" onchange="filtrarPainel()">
-            <option value="Todas">Todas as plataformas</option>
-            <option value="Instagram">Instagram</option>
-            <option value="TikTok">TikTok</option>
-            <option value="YouTube">YouTube</option>
-            <option value="Facebook">Facebook</option>
-            <option value="Telegram">Telegram</option>
-            <option value="Kwai">Kwai</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Escolha o Serviço</label>
-          <select name="servico_id" id="sel-srv" onchange="calcularPainel()" required>
-            <?php foreach ($servicos as $s): ?>
-              <option value="<?= $s['id'] ?>" data-plat="<?= htmlspecialchars($s['plataforma']) ?>" data-preco="<?= $s['preco_por_mil'] ?>" data-min="<?= $s['minimo'] ?>" data-max="<?= $s['maximo'] ?>" data-desc="<?= htmlspecialchars($s['descricao']) ?>">
-                [<?= htmlspecialchars($s['plataforma']) ?>] <?= htmlspecialchars($s['titulo']) ?> — R$ <?= number_format($s['preco_por_mil'], 2, ',', '.') ?> / 1.000
-              </option>
-            <?php endforeach; ?>
-          </select>
-          <p id="srv-desc" style="font-size:12px;color:#fbbf24;margin-top:6px"></p>
-        </div>
-        <div class="field">
-          <label>Link do Perfil ou Publicação</label>
-          <input type="text" name="link" placeholder="https://instagram.com" required>
-        </div>
-        <div class="grid-2" style="margin-bottom:18px">
-          <div class="field" style="margin-bottom:0">
-            <label>Quantidade <span id="srv-limites" style="color:#71717a"></span></label>
-            <input type="number" name="quantidade" id="inp-qtd" value="1000" min="100" oninput="calcularPainel()" required>
-          </div>
-          <div class="total-box">
-            <span style="font-size:11px;color:#a1a1aa">Valor total do pedido</span>
-            <strong id="valor-total" style="font-size:22px;color:#fbbf24">R$ 0,00</strong>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-gold" style="width:100%;padding:14px;font-size:15px">Confirmar e Enviar Pedido &rarr;</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- ABA 2: ADICIONAR SALDO PIX -->
-  <div id="aba-saldo" class="tab-pane <?= $abaAtiva === 'saldo' ? 'active' : '' ?>">
-    <div class="panel-card" style="max-width:560px">
-      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Adicionar Saldo via PIX (Efí)</h2>
-      <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Recarga automática 24/7 a partir de <strong class="gold">R$ 1,00</strong>.</p>
-
-      <form method="POST">
-        <input type="hidden" name="acao" value="gerar_pix">
-        <div class="field">
-          <label>Valor da Recarga (R$)</label>
-          <input type="number" step="0.01" min="1" name="valor" value="10.00" required>
-        </div>
-        <button type="submit" class="btn btn-gold" style="width:100%">Gerar QR Code & PIX Copia e Cola &rarr;</button>
-      </form>
-
-      <?php if ($pixGerado): ?>
-        <div style="margin-top:22px;padding-top:20px;border-top:1px solid #27272a;text-align:center">
-          <p style="font-size:14px;color:#34d399;font-weight:800;margin-bottom:12px">✓ PIX de R$ <?= number_format($pixGerado['valor'], 2, ',', '.') ?> gerado!</p>
-          <img src="https://qrserver.com<?= urlencode($pixGerado['codigo']) ?>" alt="QR Code PIX" style="border-radius:14px;border:4px solid #fbbf24;margin-bottom:14px;background:#fff;padding:6px">
-          <div class="field" style="text-align:left">
-            <label>PIX Copia e Cola:</label>
-            <textarea id="pix-code" rows="3" readonly><?= htmlspecialchars($pixGerado['codigo']) ?></textarea>
-          </div>
-          <div style="display:flex;gap:10px">
-            <button type="button" onclick="copiarTexto('pix-code')" class="btn btn-gold" style="flex:1">Copiar Código PIX</button>
-            <a href="painel.php?aba=saldo" class="btn btn-dark" style="flex:1">Já Paguei / Atualizar</a>
-          </div>
-        </div>
-      <?php endif; ?>
-    </div>
-  </div>
-
-  <!-- ABA 3: MEUS PEDIDOS -->
   <div id="aba-historico" class="tab-pane <?= $abaAtiva === 'historico' ? 'active' : '' ?>">
     <div class="panel-card table-wrap">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -341,7 +275,6 @@ foreach ($listaPedidos as $lp) {
     </div>
   </div>
 
-  <!-- ABA 4: TABELA DE SERVIÇOS -->
   <div id="aba-catalogo" class="tab-pane <?= $abaAtiva === 'catalogo' ? 'active' : '' ?>">
     <div class="panel-card table-wrap">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
@@ -368,7 +301,6 @@ foreach ($listaPedidos as $lp) {
     </div>
   </div>
 
-  <!-- ABA 5: CONTA & API -->
   <div id="aba-conta" class="tab-pane <?= $abaAtiva === 'conta' ? 'active' : '' ?>">
     <div class="grid-2">
       <div class="panel-card">
@@ -392,17 +324,43 @@ foreach ($listaPedidos as $lp) {
     </div>
   </div>
 
-  <!-- ABA 6: SUPORTE -->
   <div id="aba-suporte" class="tab-pane <?= $abaAtiva === 'suporte' ? 'active' : '' ?>">
-    <div class="panel-card" style="max-width:600px">
-      <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">Central de Suporte VIP</h2>
-      <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Precisa de ajuda com um pedido ou recarga PIX? Envie sua mensagem abaixo.</p>
-      <form method="POST">
-        <input type="hidden" name="acao" value="enviar_suporte">
-        <div class="field"><label>Assunto / Código do Pedido</label><input type="text" name="assunto" required placeholder="Ex: Dúvida sobre pedido #BS-..."></div>
-        <div class="field"><label>Mensagem</label><textarea name="mensagem" rows="4" required placeholder="Descreva como podemos ajudar..."></textarea></div>
-        <button type="submit" class="btn btn-gold">Enviar Mensagem ao Suporte &rarr;</button>
-      </form>
+    <div class="grid-2">
+      <div class="panel-card">
+        <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">Abrir Chamado de Suporte</h2>
+        <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Envie sua dúvida ou código do pedido. O administrador responderá por aqui.</p>
+        <form method="POST">
+          <input type="hidden" name="acao" value="enviar_suporte">
+          <div class="field"><label>Assunto / Código do Pedido</label><input type="text" name="assunto" required placeholder="Ex: Pedido #BS-..."></div>
+          <div class="field"><label>Mensagem</label><textarea name="mensagem" rows="4" required placeholder="Descreva sua solicitação..."></textarea></div>
+          <button type="submit" class="btn btn-gold">Enviar Solicitação &rarr;</button>
+        </form>
+      </div>
+
+      <div class="panel-card">
+        <h2 style="font-size:20px;font-weight:900;margin-bottom:14px">Minhas Solicitações</h2>
+        <?php
+        $tStmt = $pdo->prepare("SELECT * FROM tickets_suporte WHERE usuario_id = ? ORDER BY id DESC LIMIT 15");
+        $tStmt->execute([$user['id']]);
+        $meusTickets = $tStmt->fetchAll();
+        foreach ($meusTickets as $tk): ?>
+          <div style="background:#09090b;border:1px solid #27272a;border-radius:14px;padding:14px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <strong class="gold" style="font-size:13px"><?= htmlspecialchars($tk['assunto']) ?></strong>
+              <span class="status-badge"><?= htmlspecialchars($tk['status']) ?></span>
+            </div>
+            <p style="font-size:12px;color:#d4d4d8"><?= nl2br(htmlspecialchars($tk['mensagem'])) ?></p>
+            <?php if (!empty($tk['resposta_admin'])): ?>
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid #27272a;font-size:12px;color:#34d399">
+                <strong>Resposta do Admin:</strong> <?= nl2br(htmlspecialchars($tk['resposta_admin'])) ?>
+              </div>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+        <?php if (empty($meusTickets)): ?>
+          <p style="font-size:13px;color:#71717a">Você ainda não abriu nenhuma solicitação de suporte.</p>
+        <?php endif; ?>
+      </div>
     </div>
   </div>
 </main>
