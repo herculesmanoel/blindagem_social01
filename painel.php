@@ -140,109 +140,131 @@ foreach ($listaPedidos as $lp) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel VIP — Blindagem Social</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-  body{background:#060608;color:#fafafa;min-height:100vh;display:flex;flex-direction:column}
-  a{text-decoration:none;color:inherit}
-  .container{max-width:1180px;margin:0 auto;padding:0 20px;width:100%}
-  .gold{color:#fbbf24}
-  .live-bar{background:linear-gradient(90deg,#12100a,#1c1608,#12100a);border-bottom:1px solid rgba(251,191,36,.25);height:34px;display:flex;align-items:center;overflow:hidden;font-size:12px}
-  .live-track{display:flex;gap:48px;white-space:nowrap;animation:ticker 32s linear infinite;padding-left:100%}
-  .live-item{display:inline-flex;align-items:center;gap:8px;color:#e4e4e7}
-  .dot-live{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981}
-  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
-  .topbar{background:#121215;border-bottom:1px solid #27272a;position:sticky;top:0;z-index:40}
-  .topbar-inner{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px}
-  .badge-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;display:flex;align-items:center;justify-content:center;font-weight:900}
-  .saldo-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);padding:8px 14px;border-radius:12px;font-size:13px;font-weight:800;color:#fbbf24}
-  .btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border-radius:12px;font-weight:800;font-size:13px;border:none;cursor:pointer;transition:.2s}
-  .btn-gold{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;box-shadow:0 6px 20px rgba(245,158,11,.22)}
-  .btn-gold:hover{filter:brightness(1.06)}
-  .btn-dark{background:#18181b;color:#e4e4e7;border:1px solid #27272a}
-  .btn-dark:hover{border-color:#fbbf24;color:#fbbf24}
-  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
-  .stat-box{background:#121215;border:1px solid #27272a;border-radius:16px;padding:18px 20px}
-  .stat-box span{font-size:12px;color:#a1a1aa;display:block}
-  .stat-box strong{font-size:22px;font-weight:900;color:#fbbf24;margin-top:4px;display:block}
-  .menu-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;background:#121215;padding:8px;border-radius:16px;border:1px solid #27272a}
-  .tab-btn{padding:10px 16px;border-radius:11px;font-size:13px;font-weight:700;background:transparent;color:#a1a1aa;border:none;cursor:pointer;transition:.2s}
-  .tab-btn:hover{color:#fff}
-  .tab-btn.active{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b}
-  .panel-card{background:#121215;border:1px solid #27272a;border-radius:20px;padding:28px;margin-bottom:28px}
-  .field{margin-bottom:16px}
-  .field label{display:block;font-size:12px;color:#a1a1aa;margin-bottom:6px;font-weight:600}
-  .field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:12px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:14px;outline:none}
-  .field input:focus,.field select:focus,.field textarea:focus{border-color:#fbbf24}
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .total-box{background:#09090b;border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center}
-  .alert-ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#34d399;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
-  .alert-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
-  .table-wrap{overflow-x:auto}
-  table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
-  th{color:#a1a1aa;font-weight:700;padding:12px;border-bottom:1px solid #27272a;font-size:12px;text-transform:uppercase}
-  td{padding:13px 12px;border-bottom:1px solid #1f1f23}
-  .status-badge{padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(245,158,11,.14);color:#fbbf24;text-transform:uppercase}
-  .tab-pane{display:none}
-  .tab-pane.active{display:block}
-  @media(max-width:768px){.stats-row,.grid-2{grid-template-columns:1fr}}
-</style>
+<link rel="stylesheet" href="estilo.css">
 </head>
+<body>
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel VIP — Blindagem Social</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-  body{background:#060608;color:#fafafa;min-height:100vh;display:flex;flex-direction:column}
-  a{text-decoration:none;color:inherit}
-  .container{max-width:1180px;margin:0 auto;padding:0 20px;width:100%}
-  .gold{color:#fbbf24}
-  .live-bar{background:linear-gradient(90deg,#12100a,#1c1608,#12100a);border-bottom:1px solid rgba(251,191,36,.25);height:34px;display:flex;align-items:center;overflow:hidden;font-size:12px}
-  .live-track{display:flex;gap:48px;white-space:nowrap;animation:ticker 32s linear infinite;padding-left:100%}
-  .live-item{display:inline-flex;align-items:center;gap:8px;color:#e4e4e7}
-  .dot-live{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981}
-  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
-  .topbar{background:#121215;border-bottom:1px solid #27272a;position:sticky;top:0;z-index:40}
-  .topbar-inner{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px}
-  .badge-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;display:flex;align-items:center;justify-content:center;font-weight:900}
-  .saldo-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);padding:8px 14px;border-radius:12px;font-size:13px;font-weight:800;color:#fbbf24}
-  .btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border-radius:12px;font-weight:800;font-size:13px;border:none;cursor:pointer;transition:.2s}
-  .btn-gold{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;box-shadow:0 6px 20px rgba(245,158,11,.22)}
-  .btn-gold:hover{filter:brightness(1.06)}
-  .btn-dark{background:#18181b;color:#e4e4e7;border:1px solid #27272a}
-  .btn-dark:hover{border-color:#fbbf24;color:#fbbf24}
-  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
-  .stat-box{background:#121215;border:1px solid #27272a;border-radius:16px;padding:18px 20px}
-  .stat-box span{font-size:12px;color:#a1a1aa;display:block}
-  .stat-box strong{font-size:22px;font-weight:900;color:#fbbf24;margin-top:4px;display:block}
-  .menu-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;background:#121215;padding:8px;border-radius:16px;border:1px solid #27272a}
-  .tab-btn{padding:10px 16px;border-radius:11px;font-size:13px;font-weight:700;background:transparent;color:#a1a1aa;border:none;cursor:pointer;transition:.2s}
-  .tab-btn:hover{color:#fff}
-  .tab-btn.active{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b}
-  .panel-card{background:#121215;border:1px solid #27272a;border-radius:20px;padding:28px;margin-bottom:28px}
-  .field{margin-bottom:16px}
-  .field label{display:block;font-size:12px;color:#a1a1aa;margin-bottom:6px;font-weight:600}
-  .field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:12px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:14px;outline:none}
-  .field input:focus,.field select:focus,.field textarea:focus{border-color:#fbbf24}
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .total-box{background:#09090b;border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center}
-  .alert-ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#34d399;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
-  .alert-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
-  .table-wrap{overflow-x:auto}
-  table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
-  th{color:#a1a1aa;font-weight:700;padding:12px;border-bottom:1px solid #27272a;font-size:12px;text-transform:uppercase}
-  td{padding:13px 12px;border-bottom:1px solid #1f1f23}
-  .status-badge{padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(245,158,11,.14);color:#fbbf24;text-transform:uppercase}
-  .tab-pane{display:none}
-  .tab-pane.active{display:block}
-  @media(max-width:768px){.stats-row,.grid-2{grid-template-columns:1fr}}
-</style>
-</head>
+<div class="live-bar">
+  <div class="live-track">
+    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de pedir <strong class="gold">1.000 Seguidores Instagram BR</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold">500 Curtidas Reais</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold">R$ 50,00 via PIX</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold">2.000 Seguidores TikTok</strong></span>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a href="index.php" class="brand"><span class="badge-logo">B</span><span>Blindagem <span class="gold">Social</span></span></a>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <?php if ($user['usuario'] === 'admin123'): ?>
+        <a href="admin.php" class="btn btn-gold" style="padding:8px 14px;font-size:12px">⚙️ Controle Admin</a>
+      <?php endif; ?>
+      <div class="saldo-pill">Saldo: R$ <?= number_format($user['saldo'], 2, ',', '.') ?></div>
+      <span style="font-size:12px;color:#a1a1aa">@<?= htmlspecialchars($user['usuario']) ?></span>
+      <a href="auth.php?sair=1" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Sair</a>
+    </div>
+  </div>
+</header>
+
+<main class="container" style="flex:1;padding-bottom:40px">
+  <div class="stats-row">
+    <div class="stat-box"><span>Saldo Disponível</span><strong>R$ <?= number_format($user['saldo'], 2, ',', '.') ?></strong></div>
+    <div class="stat-box"><span>Pedidos Realizados</span><strong style="color:#fff"><?= count($listaPedidos) ?></strong></div>
+    <div class="stat-box"><span>Total Investido</span><strong style="color:#fff">R$ <?= number_format($totalGasto, 2, ',', '.') ?></strong></div>
+  </div>
+
+  <?php if ($msgSucesso): ?><div class="alert-ok">✓ <?= htmlspecialchars($msgSucesso) ?></div><?php endif; ?>
+  <?php if ($msgErro): ?><div class="alert-err">⚠ <?= htmlspecialchars($msgErro) ?></div><?php endif; ?>
+
+  <div class="menu-tabs">
+    <button type="button" class="tab-btn <?= $abaAtiva === 'pedido' ? 'active' : '' ?>" onclick="mudarAba('pedido', this)">🚀 Novo Pedido</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'saldo' ? 'active' : '' ?>" onclick="mudarAba('saldo', this)">💳 Adicionar Saldo (PIX)</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'historico' ? 'active' : '' ?>" onclick="mudarAba('historico', this)">📦 Meus Pedidos</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'catalogo' ? 'active' : '' ?>" onclick="mudarAba('catalogo', this)">📋 Tabela de Serviços</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'conta' ? 'active' : '' ?>" onclick="mudarAba('conta', this)">🔑 Conta & API</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'suporte' ? 'active' : '' ?>" onclick="mudarAba('suporte', this)">💬 Suporte</button>
+  </div>
+
+  <div id="aba-pedido" class="tab-pane <?= $abaAtiva === 'pedido' ? 'active' : '' ?>">
+    <div class="panel-card">
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Fazer Novo Pedido</h2>
+      <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Deixe o perfil em modo público antes de enviar. Nunca solicitamos sua senha.</p>
+
+      <form method="POST">
+        <input type="hidden" name="acao" value="novo_pedido">
+        <div class="field">
+          <label>Plataforma</label>
+          <select id="sel-plat" onchange="filtrarPainel()">
+            <option value="Todas">Todas as plataformas</option>
+            <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
+            <option value="YouTube">YouTube</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Telegram">Telegram</option>
+            <option value="Kwai">Kwai</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Escolha o Serviço</label>
+          <select name="servico_id" id="sel-srv" onchange="calcularPainel()" required>
+            <?php foreach ($servicos as $s): ?>
+              <option value="<?= $s['id'] ?>" data-plat="<?= htmlspecialchars($s['plataforma']) ?>" data-preco="<?= $s['preco_por_mil'] ?>" data-min="<?= $s['minimo'] ?>" data-max="<?= $s['maximo'] ?>" data-desc="<?= htmlspecialchars($s['descricao']) ?>">
+                [<?= htmlspecialchars($s['plataforma']) ?>] <?= htmlspecialchars($s['titulo']) ?> — R$ <?= number_format($s['preco_por_mil'], 2, ',', '.') ?> / 1.000
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <p id="srv-desc" style="font-size:12px;color:#fbbf24;margin-top:6px"></p>
+        </div>
+        <div class="field">
+          <label>Link do Perfil ou Publicação</label>
+          <input type="text" name="link" placeholder="https://instagram.com" required>
+        </div>
+        <div class="grid-2" style="margin-bottom:18px">
+          <div class="field" style="margin-bottom:0">
+            <label>Quantidade <span id="srv-limites" style="color:#71717a"></span></label>
+            <input type="number" name="quantidade" id="inp-qtd" value="1000" min="100" oninput="calcularPainel()" required>
+          </div>
+          <div class="total-box">
+            <span style="font-size:11px;color:#a1a1aa">Valor total do pedido</span>
+            <strong id="valor-total" style="font-size:22px;color:#fbbf24">R$ 0,00</strong>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-gold" style="width:100%;padding:14px;font-size:15px">Confirmar e Enviar Pedido &rarr;</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="aba-saldo" class="tab-pane <?= $abaAtiva === 'saldo' ? 'active' : '' ?>">
+    <div class="panel-card" style="max-width:560px">
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Adicionar Saldo via PIX (Efí)</h2>
+      <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Recarga automática 24/7 a partir de <strong class="gold">R$ 1,00</strong>.</p>
+
+      <form method="POST">
+        <input type="hidden" name="acao" value="gerar_pix">
+        <div class="field">
+          <label>Valor da Recarga (R$)</label>
+          <input type="number" step="0.01" min="1" name="valor" value="10.00" required>
+        </div>
+        <button type="submit" class="btn btn-gold" style="width:100%">Gerar QR Code & PIX Copia e Cola &rarr;</button>
+      </form>
+
+      <?php if ($pixGerado): ?>
+        <div style="margin-top:22px;padding-top:20px;border-top:1px solid #27272a;text-align:center">
+          <p style="font-size:14px;color:#34d399;font-weight:800;margin-bottom:12px">✓ PIX de R$ <?= number_format($pixGerado['valor'], 2, ',', '.') ?> gerado!</p>
+          <img src="https://qrserver.com<?= urlencode($pixGerado['codigo']) ?>" alt="QR Code PIX" style="border-radius:14px;border:4px solid #fbbf24;margin-bottom:14px;background:#fff;padding:6px">
+          <div class="field" style="text-align:left">
+            <label>PIX Copia e Cola:</label>
+            <textarea id="pix-code" rows="3" readonly><?= htmlspecialchars($pixGerado['codigo']) ?></textarea>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button type="button" onclick="copiarTexto('pix-code')" class="btn btn-gold" style="flex:1">Copiar Código PIX</button>
+            <a href="painel.php?aba=saldo" class="btn btn-dark" style="flex:1">Já Paguei / Atualizar</a>
+          </div>
+        </div>
+      <?php endif; ?>
+    </div>
+  </div>
 
   <div id="aba-historico" class="tab-pane <?= $abaAtiva === 'historico' ? 'active' : '' ?>">
     <div class="panel-card table-wrap">
@@ -372,7 +394,6 @@ function mudarAba(nome, btn) {
   document.getElementById('aba-' + nome).classList.add('active');
   btn.classList.add('active');
 }
-
 function filtrarPainel() {
   const plat = document.getElementById('sel-plat').value;
   const sel = document.getElementById('sel-srv');
@@ -385,7 +406,6 @@ function filtrarPainel() {
   if (primeiro) sel.value = primeiro.value;
   calcularPainel();
 }
-
 function calcularPainel() {
   const sel = document.getElementById('sel-srv');
   const opt = sel.options[sel.selectedIndex];
@@ -402,21 +422,18 @@ function calcularPainel() {
   const total = (preco / 1000) * qtd;
   document.getElementById('valor-total').innerText = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
-
 function buscarTabela() {
   const termo = document.getElementById('busca-srv').value.toLowerCase();
   document.querySelectorAll('#tabela-servicos tbody tr').forEach(tr => {
     tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
   });
 }
-
 function copiarTexto(id) {
   const el = document.getElementById(id);
   el.select();
   navigator.clipboard.writeText(el.value);
   alert('Copiado com sucesso!');
 }
-
 calcularPainel();
 </script>
 </body>
