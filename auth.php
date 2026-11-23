@@ -8,7 +8,6 @@ if (isset($_GET['sair'])) {
 }
 
 $erro = '';
-$sucesso = '';
 $modo = $_GET['modo'] ?? 'login';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $apiKey = bin2hex(random_bytes(16));
                 $stmt = $pdo->prepare("INSERT INTO usuarios (nome, usuario, email, senha_hash, api_key) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$nome, $usuario, $email, password_hash($senha, PASSWORD_DEFAULT), $apiKey]);
+                $stmt->execute([$nome, $usuario, strtolower($email), password_hash($senha, PASSWORD_DEFAULT), $apiKey]);
                 $_SESSION['usuario_id'] = (int)$pdo->lastInsertId();
                 header('Location: painel.php');
                 exit;
@@ -39,9 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($acao === 'entrar') {
         $login = trim($_POST['login'] ?? '');
         $senha = $_POST['senha'] ?? '';
+        $loginLimpo = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $login));
 
         $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE usuario = ? OR email = ?");
-        $stmt->execute([strtolower($login), strtolower($login)]);
+        $stmt->execute([$loginLimpo, strtolower($login)]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($senha, $user['senha_hash'])) {
@@ -101,17 +101,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <form method="POST">
         <input type="hidden" name="acao" value="cadastrar">
         <div class="field"><label>Seu nome</label><input type="text" name="nome" required placeholder="Ex: João Silva"></div>
-        <div class="field"><label>Usuário (sem espaços)</label><input type="text" name="usuario" required placeholder="joaosilva"></div>
+        <div class="field"><label>Usuário (letras e números)</label><input type="text" name="usuario" required placeholder="joaosilva"></div>
         <div class="field"><label>E-mail</label><input type="email" name="email" required placeholder="voce@email.com"></div>
         <div class="field"><label>Senha (mínimo 6 caracteres)</label><input type="password" name="senha" required placeholder="••••••••"></div>
         <button type="submit" class="btn">Criar Conta Grátis &rarr;</button>
       </form>
     <?php else: ?>
       <h1>Bem-vindo de volta</h1>
-      <p class="sub">Use seu login da <strong class="gold">Blindagem Social</strong> (nunca do Instagram).</p>
+      <p class="sub">Entre com seu usuário ou e-mail da <strong class="gold">Blindagem Social</strong>.</p>
       <form method="POST">
         <input type="hidden" name="acao" value="entrar">
-        <div class="field"><label>Usuário ou E-mail</label><input type="text" name="login" required placeholder="seu_usuario"></div>
+        <div class="field"><label>Usuário ou E-mail</label><input type="text" name="login" required placeholder="seu_usuario ou seu@email.com"></div>
         <div class="field"><label>Senha</label><input type="password" name="senha" required placeholder="••••••••"></div>
         <button type="submit" class="btn">Acessar Painel &rarr;</button>
       </form>
