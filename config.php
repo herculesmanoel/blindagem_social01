@@ -8,7 +8,9 @@ define('SMM_API_URL', getenv('SMM_API_URL') ?: 'https://seuprovedor.com');
 define('SMM_API_KEY', getenv('SMM_API_KEY') ?: 'SUA_CHAVE_API_SMM');
 
 try {
-    $pdo = new PDO("sqlite:" . __DIR__ . "/banco.sqlite", null, null, [
+    // Usa o Volume persistente /data do Railway se estiver montado, evitando perder contas/saldos no deploy
+    $dbDir = (is_dir('/data') && is_writable('/data')) ? '/data' : __DIR__;
+    $pdo = new PDO("sqlite:" . $dbDir . "/banco.sqlite", null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
