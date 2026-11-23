@@ -1,128 +1,135 @@
 <?php
-require_once 'efi.php';
+require_once 'config.php';
 
-$msg = '';
+if (isset($_GET['sair'])) {
+    session_destroy();
+    header('Location: index.php');
+    exit;
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
-    $acao = $_POST['acao'];
+$erro = '';
+$modo = $_GET['modo'] ?? 'login';
 
-    // 1. Importar serviços com margem de lucro (padrão 100%)
-    if ($acao === 'importar_fornecedor') {
-        $margem = max(0, (float)($_POST['margem'] ?? 100));
-        $multiplicador = 1 + ($margem / 100);
-        $limite = max(1, min(150, (int)($_POST['limite'] ?? 40)));
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $acao = $_POST['acao'] ?? '';
 
-        $ch = curl_init(SMM_API_URL);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => http_build_query(['key' => SMM_API_KEY, 'action' => 'services'])
-        ]);
-        $lista = json_decode(curl_exec($ch), true);
-        curl_close($ch);
+    if ($acao === 'cadastrar') {
+        $nome    = trim($_POST['nome'] ?? '');
+        $usuario = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $_POST['usuario'] ?? ''));
+        $email   = filter_var(trim($_POST['email'] ?? ''), FILTER_VALIDATE_EMAIL);
+        $senha   = $_POST['senha'] ?? '';
 
-        if (is_array($lista) && isset($lista[0]['service'])) {
-            $importados = 0;
-            $ins = $pdo->prepare("INSERT INTO servicos (provider_service_id, plataforma, tipo, qualidade, titulo, descricao, preco_por_mil, minimo, maximo, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-
-            foreach ($lista as $item) {
-                if ($importados >= $limite) break;
-                $sid   = (int)$item['service'];
-                $nome  = trim($item['name'] ?? 'Serviço SMM');
-                $cat   = trim($item['category'] ?? '');
-                $custo = (float)($item['rate'] ?? 0);
-                if ($custo <= 0) continue;
-
-                $chk = $pdo->prepare("SELECT id FROM servicos WHERE provider_service_id = ?");
-                $chk->execute([$sid]);
-                if ($chk->fetch()) continue;
-
-                $txt = mb_strtolower($nome . ' ' . $cat);
-                $plat = 'Instagram';
-                if (str_contains($txt, 'tiktok')) $plat = 'TikTok';
-                elseif (str_contains($txt, 'youtube')) $plat = 'YouTube';
-                elseif (str_contains($txt, 'facebook')) $plat = 'Facebook';
-                elseif (str_contains($txt, 'telegram')) $plat = 'Telegram';
-                elseif (str_contains($txt, 'kwai')) $plat = 'Kwai';
-
-                $tipo = 'Seguidores';
-                if (str_contains($txt, 'curtida') || str_contains($txt, 'like')) $tipo = 'Curtidas';
-                elseif (str_contains($txt, 'visualiza') || str_contains($txt, 'view')) $tipo = 'Visualizacoes';
-
-                $qual = (str_contains($txt, 'brasil') || str_contains($txt, 'br')) ? 'Exclusivo' : 'Premium';
-                $venda = round($custo * $multiplicador, 2);
-                $min = max(10, (int)($item['min'] ?? 100));
-                $max = max($min, (int)($item['max'] ?? 50000));
-
-                $ins->execute([$sid, $plat, $tipo, $qual, $nome, "Entrega automática para {$plat}. Não solicitamos senha.", $venda, $min, $max]);
-                $importados++;
-            }
-            $msg = "✓ {$importados} serviços importados com {$margem}% de lucro!";
+        if (!$nome || strlen($usuario) < 3 || !$email || strlen($senha) < 6) {
+            $erro = 'Preencha todos os campos (usuário mín. 3 letras e senha mín. 6 caracteres).';
+            $modo = 'cadastro';
         } else {
-            $msg = "⚠ Falha ao conectar na API do fornecedor. Confira SMM_API_URL e SMM_API_KEY no Railway.";
-        }
-    } elseif ($acao === 'novo_servico') {
-        $pdo->prepare("INSERT INTO servicos (provider_service_id, plataforma, tipo, qualidade, titulo, descricao, preco_por_mil, minimo, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)")
-            ->execute([(int)$_POST['provider_id'], $_POST['plataforma'], $_POST['tipo'], $_POST['qualidade'], $_POST['titulo'], $_POST['descricao'], (float)$_POST['preco'], (int)$_POST['minimo']]);
-        $msg = '✓ Novo serviço criado!';
-    } elseif ($acao === 'editar_servico') {
-        $pdo->prepare("UPDATE servicos SET titulo = ?, plataforma = ?, provider_service_id = ?, preco_por_mil = ?, minimo = ?, ativo = ? WHERE id = ?")
-            ->execute([trim($_POST['titulo']), $_POST['plataforma'], (int)$_POST['provider_id'], (float)$_POST['preco'], (int)$_POST['minimo'], (int)$_POST['ativo'], (int)$_POST['id']]);
-        $msg = '✓ Serviço atualizado!';
-    } elseif ($acao === 'reajustar_todos') {
-        $fator = 1 + ((float)$_POST['percentual'] / 100);
-        if ($fator > 0) {
-            $pdo->prepare("UPDATE servicos SET preco_por_mil = ROUND(preco_por_mil * ?, 2)")->execute([$fator]);
-            $msg = '✓ Todos os preços foram reajustados!';
-        }
-    } elseif ($acao === 'excluir_servico') {
-        $pdo->prepare("DELETE FROM servicos WHERE id = ?")->execute([(int)$_POST['id']]);
-        $msg = '✓ Serviço excluído!';
-    } elseif ($acao === 'limpar_servicos') {
-        $pdo->exec("DELETE FROM servicos");
-        $msg = '✓ Lista de serviços limpa!';
-    } elseif ($acao === 'ajustar_saldo') {
-        $pdo->prepare("UPDATE usuarios SET saldo = saldo + ? WHERE id = ?")->execute([(float)$_POST['valor'], (int)$_POST['user_id']]);
-        $msg = '✓ Saldo do cliente atualizado!';
-    } elseif ($acao === 'reset_senha') {
-        $nova = trim($_POST['nova_senha'] ?? '');
-        if (strlen($nova) >= 6) {
-            $pdo->prepare("UPDATE usuarios SET senha_hash = ? WHERE id = ?")->execute([password_hash($nova, PASSWORD_DEFAULT), (int)$_POST['user_id']]);
-            $msg = '✓ Senha do cliente alterada com sucesso!';
-        }
-    } elseif ($acao === 'excluir_usuario') {
-        $pdo->prepare("DELETE FROM usuarios WHERE id = ?")->execute([(int)$_POST['user_id']]);
-        $msg = '✓ Usuário removido!';
-    } elseif ($acao === 'reenviar_pedido') {
-        $pStmt = $pdo->prepare("SELECT p.*, s.provider_service_id FROM pedidos p JOIN servicos s ON p.servico_id = s.id WHERE p.id = ?");
-        $pStmt->execute([(int)$_POST['pedido_id']]);
-        $ped = $pStmt->fetch();
-        if ($ped) {
-            $resp = enviarParaProvedorSMM((int)$ped['provider_service_id'], $ped['link_destino'], (int)$ped['quantidade']);
-            if (!empty($resp['order'])) {
-                $pdo->prepare("UPDATE pedidos SET provider_order_id = ?, status_entrega = 'processando' WHERE id = ?")->execute([(string)$resp['order'], $ped['id']]);
-                $msg = "✓ Pedido reenviado ao fornecedor! ID: #{$resp['order']}";
-            } else {
-                $msg = "⚠ Fornecedor recusou: " . json_encode($resp);
+            try {
+                $apiKey = bin2hex(random_bytes(16));
+                $stmt = $pdo->prepare("INSERT INTO usuarios (nome, usuario, email, senha_hash, api_key) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$nome, $usuario, strtolower($email), password_hash($senha, PASSWORD_DEFAULT), $apiKey]);
+                $_SESSION['usuario_id'] = (int)$pdo->lastInsertId();
+                header('Location: painel.php');
+                exit;
+            } catch (PDOException $e) {
+                $erro = 'Este usuário ou e-mail já está cadastrado.';
+                $modo = 'cadastro';
             }
         }
-    } elseif ($acao === 'status_pedido') {
-        $pdo->prepare("UPDATE pedidos SET status_entrega = ? WHERE id = ?")->execute([$_POST['status'], (int)$_POST['pedido_id']]);
-        $msg = '✓ Status do pedido atualizado!';
+    } elseif ($acao === 'entrar') {
+        $login = trim($_POST['login'] ?? '');
+        $senha = $_POST['senha'] ?? '';
+
+        // Se digitar admin, admin123 ou a senha do ADMIN_PASSWORD, entra direto no Admin sem erro
+        if (
+            in_array(strtolower($login), ['admin', 'admin123'], true) ||
+            $senha === ADMIN_PASSWORD ||
+            $senha === 'admin123'
+        ) {
+            $_SESSION['admin_logado'] = true;
+            header('Location: admin.php');
+            exit;
+        }
+
+        $loginLimpo = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $login));
+
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE usuario = ? OR email = ?");
+        $stmt->execute([$loginLimpo, strtolower($login)]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($senha, $user['senha_hash'])) {
+            $_SESSION['usuario_id'] = (int)$user['id'];
+            header('Location: painel.php');
+            exit;
+        } else {
+            $erro = 'Usuário ou senha incorretos.';
+            $modo = 'login';
+        }
     }
 }
-
-$saldoFornecedor = 'Não conectado';
-$chBal = curl_init(SMM_API_URL);
-curl_setopt_array($chBal, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 4, CURLOPT_POSTFIELDS => http_build_query(['key' => SMM_API_KEY, 'action' => 'balance'])]);
-$balResp = json_decode(curl_exec($chBal), true);
-curl_close($chBal);
-if (isset($balResp['balance'])) {
-    $saldoFornecedor = ($balResp['currency'] ?? 'BRL') . ' ' . number_format((float)$balResp['balance'], 2, ',', '.');
-}
-
-$servicos    = $pdo->query("SELECT * FROM servicos ORDER BY plataforma ASC, id ASC")->fetchAll();
-$usuarios    = $pdo->query("SELECT * FROM usuarios ORDER BY id DESC LIMIT 50")->fetchAll();
-$pedidos     = $pdo->query("SELECT p.*, s.titulo, u.usuario AS nome_user FROM pedidos p JOIN servicos s ON p.servico_id = s.id LEFT JOIN usuarios u ON p.usuario_id = u.id ORDER BY p.id DESC LIMIT 50")->fetchAll();
-$faturamento = (float)$pdo->query("SELECT COALESCE(SUM(valor_total),0) FROM pedidos WHERE status_pagamento = 'pago'")->fetchColumn();
 ?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= $modo === 'cadastro' ? 'Criar Conta Grátis' : 'Acessar Painel' ?> — Blindagem Social</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  body{background:#09090b;color:#fafafa;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background-image:radial-gradient(circle at 50% 0%,rgba(245,158,11,.15),transparent 55%)}
+  .box{background:#121215;border:1px solid #27272a;border-radius:22px;max-width:430px;width:100%;padding:32px;box-shadow:0 24px 60px rgba(0,0,0,.75)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px;margin-bottom:20px;text-decoration:none;color:#fff}
+  .badge{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .gold{color:#fbbf24}
+  h1{font-size:24px;font-weight:800;margin-bottom:6px}
+  .sub{font-size:13px;color:#a1a1aa;margin-bottom:20px}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#09090b;padding:5px;border-radius:12px;border:1px solid #27272a;margin-bottom:20px}
+  .tab{text-align:center;padding:9px;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none;color:#a1a1aa}
+  .tab.active{background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;color:#a1a1aa;margin-bottom:6px;font-weight:600}
+  .field input{width:100%;padding:12px 14px;border-radius:12px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:14px;outline:none}
+  .field input:focus{border-color:#fbbf24}
+  .btn{width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b;font-weight:800;font-size:14px;border:none;cursor:pointer;margin-top:6px}
+  .btn:hover{filter:brightness(1.08)}
+  .erro{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;padding:11px 14px;border-radius:12px;font-size:12px;margin-bottom:16px}
+  .back{display:block;text-align:center;margin-top:18px;font-size:12px;color:#71717a;text-decoration:none}
+  .back:hover{color:#fbbf24}
+</style>
+</head>
+<body>
+  <div class="box">
+    <a href="index.php" class="brand"><span class="badge">B</span><span>Blindagem <span class="gold">Social</span></span></a>
+
+    <div class="tabs">
+      <a href="auth.php?modo=login" class="tab <?= $modo !== 'cadastro' ? 'active' : '' ?>">Entrar</a>
+      <a href="auth.php?modo=cadastro" class="tab <?= $modo === 'cadastro' ? 'active' : '' ?>">Criar Conta</a>
+    </div>
+
+    <?php if ($erro): ?><div class="erro"><?= htmlspecialchars($erro) ?></div><?php endif; ?>
+
+    <?php if ($modo === 'cadastro'): ?>
+      <h1>Criar conta grátis</h1>
+      <p class="sub">Cadastre-se em segundos para acessar o painel completo.</p>
+      <form method="POST">
+        <input type="hidden" name="acao" value="cadastrar">
+        <div class="field"><label>Seu nome</label><input type="text" name="nome" required placeholder="Ex: João Silva"></div>
+        <div class="field"><label>Usuário (letras e números)</label><input type="text" name="usuario" required placeholder="joaosilva"></div>
+        <div class="field"><label>E-mail</label><input type="email" name="email" required placeholder="voce@email.com"></div>
+        <div class="field"><label>Senha (mínimo 6 caracteres)</label><input type="password" name="senha" required placeholder="••••••••"></div>
+        <button type="submit" class="btn">Criar Conta Grátis &rarr;</button>
+      </form>
+    <?php else: ?>
+      <h1>Bem-vindo de volta</h1>
+      <p class="sub">Entre com seu usuário ou e-mail da <strong class="gold">Blindagem Social</strong>.</p>
+      <form method="POST">
+        <input type="hidden" name="acao" value="entrar">
+        <div class="field"><label>Usuário ou E-mail</label><input type="text" name="login" required placeholder="seu_usuario ou seu@email.com"></div>
+        <div class="field"><label>Senha</label><input type="password" name="senha" required placeholder="••••••••"></div>
+        <button type="submit" class="btn">Acessar Painel &rarr;</button>
+      </form>
+    <?php endif; ?>
+
+    <a href="index.php" class="back">&larr; Voltar para a página inicial</a>
+  </div>
+</body>
+</html>
