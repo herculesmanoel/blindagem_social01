@@ -1,9 +1,20 @@
 <?php
-$host = getenv('MYSQLHOST') ?: 'localhost';
-$port = getenv('MYSQLPORT') ?: '3306';
-$db   = getenv('MYSQLDATABASE') ?: 'railway';
-$user = getenv('MYSQLUSER') ?: 'root';
-$pass = getenv('MYSQLPASSWORD') ?: '';
+$mysqlUrl = getenv('MYSQL_URL') ?: getenv('DATABASE_URL');
+
+if ($mysqlUrl) {
+    $url  = parse_url($mysqlUrl);
+    $host = $url['host'] ?? '127.0.0.1';
+    $port = $url['port'] ?? 3306;
+    $db   = ltrim($url['path'] ?? '/railway', '/');
+    $user = $url['user'] ?? 'root';
+    $pass = $url['pass'] ?? '';
+} else {
+    $host = getenv('MYSQLHOST') ?: getenv('MYSQL_HOST') ?: '127.0.0.1';
+    $port = getenv('MYSQLPORT') ?: getenv('MYSQL_PORT') ?: '3306';
+    $db   = getenv('MYSQLDATABASE') ?: getenv('MYSQL_DATABASE') ?: 'railway';
+    $user = getenv('MYSQLUSER') ?: getenv('MYSQL_USER') ?: 'root';
+    $pass = getenv('MYSQLPASSWORD') ?: getenv('MYSQL_PASSWORD') ?: '';
+}
 
 define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin123');
 define('SMM_API_URL', getenv('SMM_API_URL') ?: 'https://seuprovedor.com');
