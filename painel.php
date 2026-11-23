@@ -11,11 +11,9 @@ $msgSucesso = '';
 $msgErro = '';
 $pixGerado = null;
 
-// Processar ações internas do painel
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
-    // 1. Fazer novo pedido usando saldo da carteira
     if ($acao === 'novo_pedido') {
         $servicoId  = (int)($_POST['servico_id'] ?? 0);
         $link       = trim($_POST['link'] ?? '');
@@ -30,13 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $valorTotal = round(($serv['preco_por_mil'] / 1000) * $quantidade, 2);
             if ((float)$user['saldo'] < $valorTotal) {
-                $msgErro = 'Saldo insuficiente! Adicione saldo via PIX na aba ao lado.';
+                $msgErro = 'Saldo insuficiente! Adicione saldo via PIX ao lado.';
             } else {
-                // Desconta saldo e envia para o fornecedor SMM
                 $pdo->beginTransaction();
                 try {
                     $pdo->prepare("UPDATE usuarios SET saldo = saldo - ? WHERE id = ?")->execute([$valorTotal, $user['id']]);
-
                     $respSmm = enviarParaProvedorSMM((int)$serv['provider_service_id'], $link, $quantidade);
                     $orderId = $respSmm['order'] ?? null;
                     $statusEntrega = $orderId ? 'processando' : 'aguardando';
@@ -47,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $pdo->commit();
                     $user['saldo'] -= $valorTotal;
-                    $msgSucesso = "Pedido #{$codigo} enviado com sucesso! Valor debitado: R$ " . number_format($valorTotal, 2, ',', '.');
+                    $msgSucesso = "Pedido #{$codigo} enviado! Valor debitado: R$ " . number_format($valorTotal, 2, ',', '.');
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     $msgErro = 'Erro ao processar pedido: ' . $e->getMessage();
@@ -56,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 2. Gerar recarga PIX via Efí (mínimo R$ 1,00)
     if ($acao === 'gerar_pix') {
         $valorRecarga = round((float)str_replace(',', '.', $_POST['valor'] ?? '0'), 2);
         if ($valorRecarga < 1.00) {
@@ -77,7 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 3. Gerar nova chave de API
     if ($acao === 'nova_api_key') {
         $novaKey = bin2hex(random_bytes(16));
         $pdo->prepare("UPDATE usuarios SET api_key = ? WHERE id = ?")->execute([$novaKey, $user['id']]);
@@ -87,10 +81,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY plataforma ASC, id ASC")->fetchAll();
-$pedidos  = $pdo->prepare("SELECT p.*, s.titulo, s.plataforma FROM pedidos p JOIN servicos s ON p.servico_id = s.id WHERE p.usuario_id = ? ORDER BY p.id DESC LIMIT 30");
+$pedidos  = $pdo->prepare("SELECT p.*, s.titulo FROM pedidos p JOIN servicos s ON p.servico_id = s.id WHERE p.usuario_id = ? ORDER BY p.id DESC LIMIT 30");
 $pedidos->execute([$user['id']]);
 $listaPedidos = $pedidos->fetchAll();
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -101,7 +96,6 @@ $listaPedidos = $pedidos->fetchAll();
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
 
-    <!-- Topo do Painel -->
     <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <a href="index.php" class="font-extrabold text-lg text-white flex items-center gap-2">
@@ -127,16 +121,13 @@ $listaPedidos = $pedidos->fetchAll();
             <div class="bg-red-500/10 border border-red-500/30 text-red-300 text-sm p-4 rounded-2xl"><?= htmlspecialchars($msgErro) ?></div>
         <?php endif; ?>
 
-        <!-- Grid Principal: Novo Pedido + Adicionar Saldo PIX -->
         <div class="grid lg:grid-cols-3 gap-6">
-            <!-- Coluna 1 e 2: Novo Pedido -->
             <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6">
                 <h2 class="text-lg font-bold mb-1">Novo Pedido</h2>
                 <p class="text-xs text-slate-400 mb-5">Escolha a plataforma, o serviço e informe o link público. Entrega automática.</p>
 
                 <form method="POST" class="space-y-4">
                     <input type="hidden" name="acao" value="novo_pedido">
-
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Plataforma</label>
                         <select id="sel-plataforma" onchange="filtrarServicosPainel()" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm">
@@ -146,29 +137,21 @@ $listaPedidos = $pedidos->fetchAll();
                             <option value="YouTube">YouTube</option>
                         </select>
                     </div>
-
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Serviço</label>
                         <select name="servico_id" id="sel-servico" onchange="atualizarResumoPainel()" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm">
                             <?php foreach ($servicos as $s): ?>
-                                <option value="<?= $s['id'] ?>"
-                                        data-plat="<?= htmlspecialchars($s['plataforma']) ?>"
-                                        data-preco="<?= $s['preco_por_mil'] ?>"
-                                        data-min="<?= $s['minimo'] ?>"
-                                        data-max="<?= $s['maximo'] ?>"
-                                        data-desc="<?= htmlspecialchars($s['descricao']) ?>">
+                                <option value="<?= $s['id'] ?>" data-plat="<?= htmlspecialchars($s['plataforma']) ?>" data-preco="<?= $s['preco_por_mil'] ?>" data-min="<?= $s['minimo'] ?>" data-max="<?= $s['maximo'] ?>" data-desc="<?= htmlspecialchars($s['descricao']) ?>">
                                     [<?= $s['plataforma'] ?>] <?= htmlspecialchars($s['titulo']) ?> — R$ <?= number_format($s['preco_por_mil'], 2, ',', '.') ?> / 1.000
                                 </option>
                             <?php endforeach; ?>
                         </select>
                         <p id="desc-servico" class="text-xs text-slate-400 mt-1.5"></p>
                     </div>
-
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">Link do Perfil ou Post (Perfil Público)</label>
                         <input type="text" name="link" placeholder="https://instagram.com" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm">
                     </div>
-
                     <div class="grid sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs text-slate-400 mb-1">Quantidade <span id="limites-qtd" class="text-slate-500"></span></label>
@@ -179,43 +162,35 @@ $listaPedidos = $pedidos->fetchAll();
                             <strong id="valor-pedido" class="text-xl text-emerald-400">R$ 0,00</strong>
                         </div>
                     </div>
-
                     <button type="submit" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition cursor-pointer">
                         Enviar Pedido Agora &rarr;
                     </button>
                 </form>
             </div>
 
-            <!-- Coluna 3: Adicionar Saldo PIX (Efí) + API -->
             <div class="space-y-6">
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <h2 class="text-lg font-bold mb-1">Adicionar Saldo via PIX</h2>
                     <p class="text-xs text-slate-400 mb-4">Recarga instantânea a partir de R$ 1,00.</p>
-
                     <form method="POST" class="space-y-3">
                         <input type="hidden" name="acao" value="gerar_pix">
                         <div>
                             <label class="text-xs text-slate-400">Valor (R$)</label>
                             <input type="number" step="0.01" min="1" name="valor" value="10.00" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm mt-1">
                         </div>
-                        <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm cursor-pointer">
-                            Gerar PIX Efí
-                        </button>
+                        <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm cursor-pointer">Gerar PIX Efí</button>
                     </form>
 
                     <?php if ($pixGerado): ?>
                         <div class="mt-4 pt-4 border-t border-slate-800 space-y-2">
                             <p class="text-xs text-emerald-400 font-semibold">PIX de R$ <?= number_format($pixGerado['valor'], 2, ',', '.') ?> gerado!</p>
                             <textarea id="pix-copia" rows="3" readonly class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-300"><?= htmlspecialchars($pixGerado['codigo']) ?></textarea>
-                            <button onclick="navigator.clipboard.writeText(document.getElementById('pix-copia').value); alert('PIX copiado!')" class="w-full py-2 rounded-xl bg-emerald-600 text-xs font-bold">
-                                Copiar PIX Copia e Cola
-                            </button>
+                            <button onclick="navigator.clipboard.writeText(document.getElementById('pix-copia').value); alert('PIX copiado!')" class="w-full py-2 rounded-xl bg-emerald-600 text-xs font-bold">Copiar PIX Copia e Cola</button>
                             <p class="text-[11px] text-slate-500">Assim que pagar, atualize a página e o saldo já estará disponível.</p>
                         </div>
                     <?php endif; ?>
                 </div>
 
-                <!-- Chave de API para Revendedores -->
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <h3 class="text-sm font-bold mb-1">Sua Chave de API (Revenda)</h3>
                     <p class="text-xs text-slate-400 mb-3">Endpoint: <code class="text-emerald-400">/api_v2.php</code></p>
@@ -228,20 +203,11 @@ $listaPedidos = $pedidos->fetchAll();
             </div>
         </div>
 
-        <!-- Histórico de Pedidos -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 overflow-x-auto">
             <h2 class="text-lg font-bold mb-4">Meus Últimos Pedidos</h2>
             <table class="w-full text-xs text-left">
                 <thead class="text-slate-400 border-b border-slate-800">
-                    <tr>
-                        <th class="py-2.5">Código</th>
-                        <th>Serviço</th>
-                        <th>Link</th>
-                        <th>Qtd</th>
-                        <th>Valor</th>
-                        <th>Status</th>
-                        <th>Data</th>
-                    </tr>
+                    <tr><th class="py-2.5">Código</th><th>Serviço</th><th>Link</th><th>Qtd</th><th>Valor</th><th>Status</th><th>Data</th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
                     <?php foreach ($listaPedidos as $p): ?>
@@ -282,3 +248,18 @@ $listaPedidos = $pedidos->fetchAll();
             const opt = sel.options[sel.selectedIndex];
             if (!opt) return;
             const preco = parseFloat(opt.dataset.preco);
+            const min = parseInt(opt.dataset.min);
+            const max = parseInt(opt.dataset.max);
+            const inp = document.getElementById('inp-qtd');
+            inp.min = min;
+            inp.max = max;
+            document.getElementById('limites-qtd').innerText = `(Mín: ${min} | Máx: ${max})`;
+            document.getElementById('desc-servico').innerText = opt.dataset.desc;
+            const qtd = parseInt(inp.value) || 0;
+            const total = (preco / 1000) * qtd;
+            document.getElementById('valor-pedido').innerText = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        atualizarResumoPainel();
+    </script>
+</body>
+</html>
