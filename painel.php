@@ -12,6 +12,31 @@ $msgErro = '';
 $pixGerado = null;
 $abaAtiva = $_GET['aba'] ?? 'pedido';
 
+if (isset($_GET['sincronizar'])) {
+    $abaAtiva = 'historico';
+    $pends = $pdo->prepare("SELECT * FROM pedidos WHERE usuario_id = ? AND status_entrega = 'processando' AND provider_order_id IS NOT NULL");
+    $pends->execute([$user['id']]);
+    foreach ($pends->fetchAll() as $ped) {
+        $ch = curl_init(SMM_API_URL);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 5, CURLOPT_POSTFIELDS => http_build_query(['key' => SMM_API_KEY, 'action' => 'status', 'order' => $ped['provider_order_id']])]);
+        $r = json_decode(curl_exec($ch), true);
+        curl_close($ch);
+        if (!empty($r['status'])) {
+            $st = strtolower($r['status']);
+            if ($st === 'completed') {
+                $pdo->prepare("UPDATE pedidos SET status_entrega = 'concluido' WHERE id = ?")->execute([$ped['id']]);
+            } elseif ($st === 'canceled' || $st === 'refunded') {
+                $pdo->beginTransaction();
+                $pdo->prepare("UPDATE pedidos SET status_entrega = 'cancelado' WHERE id = ?")->execute([$ped['id']]);
+                $pdo->prepare("UPDATE usuarios SET saldo = saldo + ? WHERE id = ?")->execute([$ped['valor_total'], $user['id']]);
+                $pdo->commit();
+                $user['saldo'] += (float)$ped['valor_total'];
+            }
+        }
+    }
+    $msgSucesso = 'Status dos pedidos sincronizados com sucesso!';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
@@ -52,9 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-    }
-
-    if ($acao === 'gerar_pix') {
+    } elseif ($acao === 'gerar_pix') {
         $abaAtiva = 'saldo';
         $valorRecarga = round((float)str_replace(',', '.', $_POST['valor'] ?? '0'), 2);
         if ($valorRecarga < 1.00) {
@@ -73,14 +96,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msgErro = 'Erro ao gerar PIX Efí: ' . $e->getMessage();
             }
         }
-    }
-
-    if ($acao === 'nova_api_key') {
-        $abaAtiva = 'api';
+    } elseif ($acao === 'nova_api_key') {
+        $abaAtiva = 'conta';
         $novaKey = bin2hex(random_bytes(16));
         $pdo->prepare("UPDATE usuarios SET api_key = ? WHERE id = ?")->execute([$novaKey, $user['id']]);
         $user['api_key'] = $novaKey;
         $msgSucesso = 'Nova chave de API gerada com sucesso!';
+    } elseif ($acao === 'alterar_senha') {
+        $abaAtiva = 'conta';
+        $novaSenha = $_POST['nova_senha'] ?? '';
+        if (strlen($novaSenha) < 6) {
+            $msgErro = 'A nova senha deve ter no mínimo 6 caracteres.';
+        } else {
+            $pdo->prepare("UPDATE usuarios SET senha_hash = ? WHERE id = ?")->execute([password_hash($novaSenha, PASSWORD_DEFAULT), $user['id']]);
+            $msgSucesso = 'Sua senha foi atualizada com sucesso!';
+        }
+    } elseif ($acao === 'enviar_suporte') {
+        $abaAtiva = 'suporte';
+        $msgSucesso = 'Solicitação enviada! Nossa equipe responderá no seu e-mail cadastrado em instantes.';
     }
 }
 
@@ -100,21 +133,26 @@ foreach ($listaPedidos as $lp) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel do Cliente — Blindagem Social</title>
+<title>Painel VIP — Blindagem Social</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-  body{background:#09090b;color:#fafafa;min-height:100vh;display:flex;flex-direction:column}
+  body{background:#060608;color:#fafafa;min-height:100vh;display:flex;flex-direction:column}
   a{text-decoration:none;color:inherit}
   .container{max-width:1180px;margin:0 auto;padding:0 20px;width:100%}
-  .topbar{background:#121215;border-bottom:1px solid #27272a;position:sticky;top:0;z-index:40}
-  .topbar-inner{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px}
-  .badge-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b;display:flex;align-items:center;justify-content:center;font-weight:900}
   .gold{color:#fbbf24}
-  .saldo-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);padding:8px 14px;border-radius:12px;font-size:13px;font-weight:700;color:#fbbf24}
-  .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;border-radius:12px;font-weight:800;font-size:13px;border:none;cursor:pointer;transition:.2s}
-  .btn-gold{background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b;box-shadow:0 6px 20px rgba(245,158,11,.22)}
-  .btn-gold:hover{filter:brightness(1.08)}
+  .live-bar{background:linear-gradient(90deg,#12100a,#1c1608,#12100a);border-bottom:1px solid rgba(251,191,36,.25);height:34px;display:flex;align-items:center;overflow:hidden;font-size:12px}
+  .live-track{display:flex;gap:48px;white-space:nowrap;animation:ticker 32s linear infinite;padding-left:100%}
+  .live-item{display:inline-flex;align-items:center;gap:8px;color:#e4e4e7}
+  .dot-live{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981}
+  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+  .topbar{background:#121215;border-bottom:1px solid #27272a;position:sticky;top:0;z-index:40}
+  .topbar-inner{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px}
+  .badge-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .saldo-pill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);padding:8px 14px;border-radius:12px;font-size:13px;font-weight:800;color:#fbbf24}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border-radius:12px;font-weight:800;font-size:13px;border:none;cursor:pointer;transition:.2s}
+  .btn-gold{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b;box-shadow:0 6px 20px rgba(245,158,11,.22)}
+  .btn-gold:hover{filter:brightness(1.06)}
   .btn-dark{background:#18181b;color:#e4e4e7;border:1px solid #27272a}
   .btn-dark:hover{border-color:#fbbf24;color:#fbbf24}
   .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
@@ -122,16 +160,16 @@ foreach ($listaPedidos as $lp) {
   .stat-box span{font-size:12px;color:#a1a1aa;display:block}
   .stat-box strong{font-size:22px;font-weight:900;color:#fbbf24;margin-top:4px;display:block}
   .menu-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;background:#121215;padding:8px;border-radius:16px;border:1px solid #27272a}
-  .tab-btn{padding:10px 18px;border-radius:11px;font-size:13px;font-weight:700;background:transparent;color:#a1a1aa;border:none;cursor:pointer;transition:.2s}
+  .tab-btn{padding:10px 16px;border-radius:11px;font-size:13px;font-weight:700;background:transparent;color:#a1a1aa;border:none;cursor:pointer;transition:.2s}
   .tab-btn:hover{color:#fff}
-  .tab-btn.active{background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b}
+  .tab-btn.active{background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);color:#09090b}
   .panel-card{background:#121215;border:1px solid #27272a;border-radius:20px;padding:28px;margin-bottom:28px}
   .field{margin-bottom:16px}
   .field label{display:block;font-size:12px;color:#a1a1aa;margin-bottom:6px;font-weight:600}
   .field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:12px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:14px;outline:none}
-  .field input:focus,.field select:focus{border-color:#fbbf24}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:#fbbf24}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .total-box{background:#09090b;border:1px solid #27272a;border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center}
+  .total-box{background:#09090b;border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center}
   .alert-ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#34d399;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
   .alert-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;padding:14px 18px;border-radius:14px;font-size:13px;margin-bottom:20px;font-weight:600}
   .table-wrap{overflow-x:auto}
@@ -144,12 +182,25 @@ foreach ($listaPedidos as $lp) {
   @media(max-width:768px){.stats-row,.grid-2{grid-template-columns:1fr}}
 </style>
 </head>
+
 <body>
+
+<div class="live-bar">
+  <div class="live-track">
+    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de pedir <strong class="gold">1.000 Seguidores Instagram BR</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold">500 Curtidas Reais</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold">R$ 50,00 via PIX</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold">2.000 Seguidores TikTok</strong></span>
+  </div>
+</div>
 
 <header class="topbar">
   <div class="container topbar-inner">
     <a href="index.php" class="brand"><span class="badge-logo">B</span><span>Blindagem <span class="gold">Social</span></span></a>
-    <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <?php if ($user['usuario'] === 'admin123'): ?>
+        <a href="admin.php" class="btn btn-gold" style="padding:8px 14px;font-size:12px">⚙️ Controle Admin</a>
+      <?php endif; ?>
       <div class="saldo-pill">Saldo: R$ <?= number_format($user['saldo'], 2, ',', '.') ?></div>
       <span style="font-size:12px;color:#a1a1aa">@<?= htmlspecialchars($user['usuario']) ?></span>
       <a href="auth.php?sair=1" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Sair</a>
@@ -172,13 +223,14 @@ foreach ($listaPedidos as $lp) {
     <button type="button" class="tab-btn <?= $abaAtiva === 'saldo' ? 'active' : '' ?>" onclick="mudarAba('saldo', this)">💳 Adicionar Saldo (PIX)</button>
     <button type="button" class="tab-btn <?= $abaAtiva === 'historico' ? 'active' : '' ?>" onclick="mudarAba('historico', this)">📦 Meus Pedidos</button>
     <button type="button" class="tab-btn <?= $abaAtiva === 'catalogo' ? 'active' : '' ?>" onclick="mudarAba('catalogo', this)">📋 Tabela de Serviços</button>
-    <button type="button" class="tab-btn <?= $abaAtiva === 'api' ? 'active' : '' ?>" onclick="mudarAba('api', this)">🔑 API & Suporte</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'conta' ? 'active' : '' ?>" onclick="mudarAba('conta', this)">🔑 Conta & API</button>
+    <button type="button" class="tab-btn <?= $abaAtiva === 'suporte' ? 'active' : '' ?>" onclick="mudarAba('suporte', this)">💬 Suporte</button>
   </div>
 
   <!-- ABA 1: NOVO PEDIDO -->
   <div id="aba-pedido" class="tab-pane <?= $abaAtiva === 'pedido' ? 'active' : '' ?>">
     <div class="panel-card">
-      <h2 style="font-size:20px;font-weight:800;margin-bottom:4px">Fazer Novo Pedido</h2>
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Fazer Novo Pedido</h2>
       <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Deixe o perfil em modo público antes de enviar. Nunca solicitamos sua senha.</p>
 
       <form method="POST">
@@ -190,6 +242,9 @@ foreach ($listaPedidos as $lp) {
             <option value="Instagram">Instagram</option>
             <option value="TikTok">TikTok</option>
             <option value="YouTube">YouTube</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Telegram">Telegram</option>
+            <option value="Kwai">Kwai</option>
           </select>
         </div>
         <div class="field">
@@ -225,7 +280,7 @@ foreach ($listaPedidos as $lp) {
   <!-- ABA 2: ADICIONAR SALDO PIX -->
   <div id="aba-saldo" class="tab-pane <?= $abaAtiva === 'saldo' ? 'active' : '' ?>">
     <div class="panel-card" style="max-width:560px">
-      <h2 style="font-size:20px;font-weight:800;margin-bottom:4px">Adicionar Saldo via PIX (Efí)</h2>
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Adicionar Saldo via PIX (Efí)</h2>
       <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Recarga automática 24/7 a partir de <strong class="gold">R$ 1,00</strong>.</p>
 
       <form method="POST">
@@ -234,17 +289,21 @@ foreach ($listaPedidos as $lp) {
           <label>Valor da Recarga (R$)</label>
           <input type="number" step="0.01" min="1" name="valor" value="10.00" required>
         </div>
-        <button type="submit" class="btn btn-gold" style="width:100%">Gerar QR / PIX Copia e Cola &rarr;</button>
+        <button type="submit" class="btn btn-gold" style="width:100%">Gerar QR Code & PIX Copia e Cola &rarr;</button>
       </form>
 
       <?php if ($pixGerado): ?>
-        <div style="margin-top:22px;padding-top:20px;border-top:1px solid #27272a">
-          <p style="font-size:13px;color:#34d399;font-weight:700;margin-bottom:8px">✓ PIX de R$ <?= number_format($pixGerado['valor'], 2, ',', '.') ?> gerado! Copie o código abaixo:</p>
-          <div class="field">
+        <div style="margin-top:22px;padding-top:20px;border-top:1px solid #27272a;text-align:center">
+          <p style="font-size:14px;color:#34d399;font-weight:800;margin-bottom:12px">✓ PIX de R$ <?= number_format($pixGerado['valor'], 2, ',', '.') ?> gerado!</p>
+          <img src="https://qrserver.com<?= urlencode($pixGerado['codigo']) ?>" alt="QR Code PIX" style="border-radius:14px;border:4px solid #fbbf24;margin-bottom:14px;background:#fff;padding:6px">
+          <div class="field" style="text-align:left">
+            <label>PIX Copia e Cola:</label>
             <textarea id="pix-code" rows="3" readonly><?= htmlspecialchars($pixGerado['codigo']) ?></textarea>
           </div>
-          <button type="button" onclick="copiarTexto('pix-code')" class="btn btn-gold" style="width:100%">Copiar Código PIX</button>
-          <p style="font-size:12px;color:#a1a1aa;margin-top:10px;text-align:center">Após efetuar o pagamento no app do banco, atualize esta página para ver seu novo saldo.</p>
+          <div style="display:flex;gap:10px">
+            <button type="button" onclick="copiarTexto('pix-code')" class="btn btn-gold" style="flex:1">Copiar Código PIX</button>
+            <a href="painel.php?aba=saldo" class="btn btn-dark" style="flex:1">Já Paguei / Atualizar</a>
+          </div>
         </div>
       <?php endif; ?>
     </div>
@@ -253,7 +312,10 @@ foreach ($listaPedidos as $lp) {
   <!-- ABA 3: MEUS PEDIDOS -->
   <div id="aba-historico" class="tab-pane <?= $abaAtiva === 'historico' ? 'active' : '' ?>">
     <div class="panel-card table-wrap">
-      <h2 style="font-size:20px;font-weight:800;margin-bottom:16px">Histórico de Pedidos</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:20px;font-weight:900">Histórico de Pedidos</h2>
+        <a href="painel.php?sincronizar=1" class="btn btn-dark" style="padding:8px 14px;font-size:12px">🔄 Atualizar Status</a>
+      </div>
       <table>
         <thead>
           <tr><th>Código</th><th>Plataforma</th><th>Serviço</th><th>Link</th><th>Qtd</th><th>Valor</th><th>Status</th><th>Data</th></tr>
@@ -282,8 +344,11 @@ foreach ($listaPedidos as $lp) {
   <!-- ABA 4: TABELA DE SERVIÇOS -->
   <div id="aba-catalogo" class="tab-pane <?= $abaAtiva === 'catalogo' ? 'active' : '' ?>">
     <div class="panel-card table-wrap">
-      <h2 style="font-size:20px;font-weight:800;margin-bottom:16px">Tabela Completa de Serviços</h2>
-      <table>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <h2 style="font-size:20px;font-weight:900">Tabela Completa de Serviços</h2>
+        <input type="text" id="busca-srv" onkeyup="buscarTabela()" placeholder="Buscar serviço..." style="max-width:260px;padding:9px 12px;border-radius:10px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:13px">
+      </div>
+      <table id="tabela-servicos">
         <thead>
           <tr><th>ID</th><th>Plataforma</th><th>Serviço</th><th>Qualidade</th><th>Mín / Máx</th><th>Preço por 1.000</th></tr>
         </thead>
@@ -303,26 +368,41 @@ foreach ($listaPedidos as $lp) {
     </div>
   </div>
 
-  <!-- ABA 5: API & SUPORTE -->
-  <div id="aba-api" class="tab-pane <?= $abaAtiva === 'api' ? 'active' : '' ?>">
-    <div class="panel-card" style="max-width:640px">
-      <h2 style="font-size:20px;font-weight:800;margin-bottom:6px">Integração via API (Revendedores)</h2>
-      <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Conecte seu painel SMM externo usando a URL e sua chave exclusiva abaixo:</p>
-      <div class="field">
-        <label>URL da API (POST / GET)</label>
-        <input type="text" readonly value="https://<?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? 'seusite.up.railway.app') ?>/api_v2.php">
-      </div>
-      <div class="field">
-        <label>Sua Chave de API (API Key)</label>
-        <input type="text" id="api-key-box" readonly value="<?= htmlspecialchars($user['api_key']) ?>">
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button type="button" onclick="copiarTexto('api-key-box')" class="btn btn-gold">Copiar API Key</button>
+  <!-- ABA 5: CONTA & API -->
+  <div id="aba-conta" class="tab-pane <?= $abaAtiva === 'conta' ? 'active' : '' ?>">
+    <div class="grid-2">
+      <div class="panel-card">
+        <h2 style="font-size:18px;font-weight:900;margin-bottom:14px">Alterar Minha Senha</h2>
         <form method="POST">
-          <input type="hidden" name="acao" value="nova_api_key">
-          <button type="submit" class="btn btn-dark">Gerar Nova Chave</button>
+          <input type="hidden" name="acao" value="alterar_senha">
+          <div class="field"><label>Nova Senha (mínimo 6 caracteres)</label><input type="password" name="nova_senha" required placeholder="••••••••"></div>
+          <button type="submit" class="btn btn-gold">Atualizar Senha</button>
         </form>
       </div>
+      <div class="panel-card">
+        <h2 style="font-size:18px;font-weight:900;margin-bottom:6px">Integração via API (Revenda)</h2>
+        <p style="font-size:12px;color:#a1a1aa;margin-bottom:14px">Conecte seu painel externo usando sua API Key exclusiva:</p>
+        <div class="field"><label>URL da API</label><input type="text" readonly value="https://<?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? 'seusite.up.railway.app') ?>/api_v2.php"></div>
+        <div class="field"><label>Sua Chave de API</label><input type="text" id="api-key-box" readonly value="<?= htmlspecialchars($user['api_key']) ?>"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button type="button" onclick="copiarTexto('api-key-box')" class="btn btn-gold">Copiar API Key</button>
+          <form method="POST"><input type="hidden" name="acao" value="nova_api_key"><button type="submit" class="btn btn-dark">Gerar Nova Chave</button></form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA 6: SUPORTE -->
+  <div id="aba-suporte" class="tab-pane <?= $abaAtiva === 'suporte' ? 'active' : '' ?>">
+    <div class="panel-card" style="max-width:600px">
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">Central de Suporte VIP</h2>
+      <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Precisa de ajuda com um pedido ou recarga PIX? Envie sua mensagem abaixo.</p>
+      <form method="POST">
+        <input type="hidden" name="acao" value="enviar_suporte">
+        <div class="field"><label>Assunto / Código do Pedido</label><input type="text" name="assunto" required placeholder="Ex: Dúvida sobre pedido #BS-..."></div>
+        <div class="field"><label>Mensagem</label><textarea name="mensagem" rows="4" required placeholder="Descreva como podemos ajudar..."></textarea></div>
+        <button type="submit" class="btn btn-gold">Enviar Mensagem ao Suporte &rarr;</button>
+      </form>
     </div>
   </div>
 </main>
@@ -363,6 +443,13 @@ function calcularPainel() {
   const qtd = parseInt(inp.value) || 0;
   const total = (preco / 1000) * qtd;
   document.getElementById('valor-total').innerText = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function buscarTabela() {
+  const termo = document.getElementById('busca-srv').value.toLowerCase();
+  document.querySelectorAll('#tabela-servicos tbody tr').forEach(tr => {
+    tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
+  });
 }
 
 function copiarTexto(id) {
