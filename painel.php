@@ -195,7 +195,7 @@ $pctVip    = min(100, round(($totalGasto / $proxMeta) * 100));
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel VIP — Blindagem Social</title>
-<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="estilo.css?v=5">
 </head>
 <body>
 
