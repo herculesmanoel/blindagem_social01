@@ -183,6 +183,10 @@ $totalGasto = 0;
 foreach ($listaPedidos as $lp) {
     $totalGasto += (float)$lp['valor_total'];
 }
+
+$nivelNome = $totalGasto >= 500 ? '💎 Diamante VIP' : ($totalGasto >= 150 ? '👑 Ouro VIP' : ($totalGasto >= 30 ? '🥈 Prata' : '🥉 Iniciante'));
+$proxMeta  = $totalGasto >= 500 ? 1000 : ($totalGasto >= 150 ? 500 : ($totalGasto >= 30 ? 150 : 30));
+$pctVip    = min(100, round(($totalGasto / $proxMeta) * 100));
 ?>
 
 <!DOCTYPE html>
@@ -197,10 +201,10 @@ foreach ($listaPedidos as $lp) {
 
 <div class="live-bar">
   <div class="live-track">
-    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de pedir <strong class="gold-solid">1.000 Seguidores Instagram BR</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold-solid">500 Curtidas Reais</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold-solid">R$ 50,00 via PIX</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold-solid">2.000 Seguidores TikTok</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de pedir <strong class="gold-solid">5.000 Seguidores Instagram BR</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold-solid">2.500 Curtidas Reais</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold-solid">R$ 100,00 via PIX</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold-solid">3.000 Seguidores TikTok</strong></span>
   </div>
 </div>
 
@@ -225,6 +229,14 @@ foreach ($listaPedidos as $lp) {
     <div class="stat-box"><span>Total Investido</span><strong style="color:#fff">R$ <?= number_format($totalGasto, 2, ',', '.') ?></strong></div>
   </div>
 
+  <div class="vip-bar-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+      <span>Seu Status Atual: <strong class="gold-solid"><?= $nivelNome ?></strong></span>
+      <span style="color:#a1a1aa">Próximo nível: <strong style="color:#fff">R$ <?= number_format($proxMeta, 2, ',', '.') ?></strong> (<?= $pctVip ?>%)</span>
+    </div>
+    <div class="vip-track"><div class="vip-fill" style="width:<?= $pctVip ?>%"></div></div>
+  </div>
+
   <?php if ($msgSucesso): ?><div class="alert-ok">✓ <?= htmlspecialchars($msgSucesso) ?></div><?php endif; ?>
   <?php if ($msgErro): ?><div class="alert-err">⚠ <?= htmlspecialchars($msgErro) ?></div><?php endif; ?>
 
@@ -239,7 +251,10 @@ foreach ($listaPedidos as $lp) {
 
   <div id="aba-pedido" class="tab-pane <?= $abaAtiva === 'pedido' ? 'active' : '' ?>">
     <div class="panel-card">
-      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Fazer Novo Pedido</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+        <h2 style="font-size:20px;font-weight:900">Fazer Novo Pedido</h2>
+        <span style="font-size:11px;background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3);padding:4px 10px;border-radius:99px;font-weight:800">⚡ Entrega Automática 24h</span>
+      </div>
       <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Deixe o perfil em modo público antes de enviar. Nunca solicitamos sua senha.</p>
 
       <form method="POST">
@@ -271,17 +286,24 @@ foreach ($listaPedidos as $lp) {
           <label>Link do Perfil ou Publicação</label>
           <input type="text" name="link" placeholder="https://instagram.com" required>
         </div>
-        <div class="grid-2" style="margin-bottom:18px">
+        <div class="grid-2" style="margin-bottom:18px;align-items:start">
           <div class="field" style="margin-bottom:0">
             <label>Quantidade <span id="srv-limites" style="color:#71717a"></span></label>
             <input type="number" name="quantidade" id="inp-qtd" value="1000" min="100" oninput="calcularPainel()" required>
+            <div class="quick-pills">
+              <button type="button" class="q-pill" onclick="setQtd(500)">500</button>
+              <button type="button" class="q-pill" onclick="setQtd(1000)">1.000</button>
+              <button type="button" class="q-pill" onclick="setQtd(2500)">2.500 🔥</button>
+              <button type="button" class="q-pill" onclick="setQtd(5000)">5.000 👑</button>
+              <button type="button" class="q-pill" onclick="setQtd(10000)">10.000 💎</button>
+            </div>
           </div>
-          <div class="total-box">
+          <div class="total-box" style="margin-top:22px">
             <span style="font-size:11px;color:#a1a1aa">Valor total do pedido</span>
-            <strong id="valor-total" style="font-size:22px;color:#fbbf24">R$ 0,00</strong>
+            <strong id="valor-total" style="font-size:24px;color:#fbbf24">R$ 0,00</strong>
           </div>
         </div>
-        <button type="submit" class="btn btn-gold" style="width:100%;padding:14px;font-size:15px">Confirmar e Enviar Pedido &rarr;</button>
+        <button type="submit" class="btn btn-gold" style="width:100%;padding:15px;font-size:15px">Confirmar e Impulsionar Agora &rarr;</button>
       </form>
     </div>
   </div>
@@ -289,13 +311,30 @@ foreach ($listaPedidos as $lp) {
   <div id="aba-saldo" class="tab-pane <?= $abaAtiva === 'saldo' ? 'active' : '' ?>">
     <div class="panel-card" style="max-width:560px">
       <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">Adicionar Saldo via PIX (Efí)</h2>
-      <p style="font-size:13px;color:#a1a1aa;margin-bottom:20px">Recarga automática 24/7 a partir de <strong class="gold">R$ 1,00</strong>.</p>
+      <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Recarga automática 24/7 a partir de <strong class="gold">R$ 1,00</strong>. Escolha um pacote rápido ou digite:</p>
+
+      <div class="pix-presets">
+        <div class="pix-card" onclick="document.querySelector('#aba-saldo input[name=valor]').value='15.00'">
+          <strong style="font-size:16px;color:#fff">R$ 15</strong>
+          <span style="display:block;font-size:11px;color:#71717a">Inicial</span>
+        </div>
+        <div class="pix-card destaque" onclick="document.querySelector('#aba-saldo input[name=valor]').value='50.00'">
+          <span class="pix-tag">🔥 MAIS ESCOLHIDO</span>
+          <strong class="gold-solid" style="font-size:17px">R$ 50</strong>
+          <span style="display:block;font-size:11px;color:#fde68a">Ideal p/ crescer</span>
+        </div>
+        <div class="pix-card" onclick="document.querySelector('#aba-saldo input[name=valor]').value='100.00'">
+          <span class="pix-tag">👑 PACOTE VIP</span>
+          <strong style="font-size:16px;color:#fff">R$ 100</strong>
+          <span style="display:block;font-size:11px;color:#a1a1aa">Máxima escala</span>
+        </div>
+      </div>
 
       <form method="POST">
         <input type="hidden" name="acao" value="gerar_pix">
         <div class="field">
           <label>Valor da Recarga (R$)</label>
-          <input type="number" step="0.01" min="1" name="valor" value="10.00" required>
+          <input type="number" step="0.01" min="1" name="valor" value="50.00" required>
         </div>
         <button type="submit" class="btn btn-gold" style="width:100%">Gerar QR Code & PIX Copia e Cola &rarr;</button>
       </form>
@@ -458,6 +497,10 @@ foreach ($listaPedidos as $lp) {
 </main>
 
 <script>
+function setQtd(v) {
+  document.getElementById('inp-qtd').value = v;
+  calcularPainel();
+}
 function mudarAba(nome, btn) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
