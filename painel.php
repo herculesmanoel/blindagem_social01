@@ -17,6 +17,10 @@ $pixGerado = null;
 $efeitoCompra = '';
 $abaAtiva = $_GET['aba'] ?? 'pedido';
 
+if (isset($_GET['enviado'])) {
+    $msgSucesso = 'Mensagem enviada ao suporte! Nossa equipe foi notificada e responderá por aqui em instantes.';
+}
+
 if (isset($_GET['sincronizar'])) {
     $abaAtiva = 'historico';
     $pends = $pdo->prepare("SELECT * FROM pedidos WHERE usuario_id = ? AND status_entrega = 'processando' AND provider_order_id IS NOT NULL AND provider_order_id != ''");
@@ -40,6 +44,16 @@ if (isset($_GET['sincronizar'])) {
         }
     }
     $msgSucesso = 'Status dos pedidos sincronizados com sucesso!';
+}
+
+function notificarAdminWhatsApp(string $texto): void {
+    $apiKey = getenv('WPP_API_KEY') ?: '';
+    if ($apiKey === '') return;
+    $url = "https://callmebot.com" . urlencode($texto) . "&apikey=" . urlencode($apiKey);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+    curl_exec($ch);
+    curl_close($ch);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -77,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user['saldo'] -= $valorTotal;
                     $efeitoCompra = strtolower($serv['plataforma']);
                     $msgSucesso = "Pedido #{$codigo} enviado com sucesso! Valor debitado: R$ " . number_format($valorTotal, 2, ',', '.');
+                    notificarAdminWhatsApp("💰 Novo Pedido #{$codigo} - @{$user['usuario']} - R$ " . number_format($valorTotal, 2, ',', '.'));
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     $msgErro = 'Erro ao processar pedido: ' . $e->getMessage();
@@ -119,13 +134,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msgSucesso = 'Sua senha foi atualizada com sucesso!';
         }
     } elseif ($acao === 'enviar_suporte') {
-        $abaAtiva = 'suporte';
         $assunto  = trim($_POST['assunto'] ?? '');
         $mensagem = trim($_POST['mensagem'] ?? '');
         if ($assunto !== '' && $mensagem !== '') {
-            $pdo->prepare("INSERT INTO tickets_suporte (usuario_id, assunto, mensagem) VALUES (?, ?, ?)")
-                ->execute([$user['id'], $assunto, $mensagem]);
-            $msgSucesso = 'Solicitação enviada! Você verá a resposta do administrador abaixo assim que for respondida.';
+            $abStmt = $pdo->prepare("SELECT id, mensagem FROM tickets_suporte WHERE usuario_id = ? AND status != 'encerrado' ORDER BY id DESC LIMIT 1");
+            $abStmt->execute([$user['id']]);
+            $aberto = $abStmt->fetch();
+
+            if ($aberto) {
+                $novaMsg = $aberto['mensagem'] . "\n\n[Cliente]: " . $mensagem;
+                $pdo->prepare("UPDATE tickets_suporte SET mensagem = ?, status = 'aberto' WHERE id = ?")
+                    ->execute([$novaMsg, $aberto['id']]);
+            } else {
+                $pdo->prepare("INSERT INTO tickets_suporte (usuario_id, assunto, mensagem) VALUES (?, ?, ?)")
+                    ->execute([$user['id'], $assunto, $mensagem]);
+            }
+
+            notificarAdminWhatsApp("💬 Suporte Blindagem Social - Cliente @{$user['usuario']} | Assunto: {$assunto} | Msg: {$mensagem}");
+            header('Location: painel.php?aba=suporte&enviado=1');
+            exit;
         }
     } elseif ($acao === 'avaliar_ticket') {
         $abaAtiva = 'suporte';
@@ -364,20 +391,20 @@ foreach ($listaPedidos as $lp) {
   <div id="aba-suporte" class="tab-pane <?= $abaAtiva === 'suporte' ? 'active' : '' ?>">
     <div class="grid-2">
       <div class="panel-card">
-        <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">Abrir Chamado de Suporte</h2>
-        <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Envie sua dúvida ou código do pedido. O administrador responderá por aqui.</p>
+        <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">Central de Atendimento VIP</h2>
+        <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Envie sua mensagem abaixo. Nossa equipe recebe a notificação na hora e responde por aqui.</p>
         <form method="POST">
           <input type="hidden" name="acao" value="enviar_suporte">
           <div class="field"><label>Assunto / Código do Pedido</label><input type="text" name="assunto" required placeholder="Ex: Pedido #BS-..."></div>
           <div class="field"><label>Mensagem</label><textarea name="mensagem" rows="4" required placeholder="Descreva sua solicitação..."></textarea></div>
-          <button type="submit" class="btn btn-gold">Enviar Solicitação &rarr;</button>
+          <button type="submit" class="btn btn-gold" style="width:100%">Enviar Solicitação &rarr;</button>
         </form>
       </div>
 
       <div class="panel-card">
-        <h2 style="font-size:20px;font-weight:900;margin-bottom:14px">Minhas Solicitações</h2>
+        <h2 style="font-size:20px;font-weight:900;margin-bottom:14px">Meu Atendimento</h2>
         <?php
-        $tStmt = $pdo->prepare("SELECT * FROM tickets_suporte WHERE usuario_id = ? ORDER BY id DESC LIMIT 15");
+        $tStmt = $pdo->prepare("SELECT * FROM tickets_suporte WHERE usuario_id = ? ORDER BY id DESC LIMIT 10");
         $tStmt->execute([$user['id']]);
         $meusTickets = $tStmt->fetchAll();
         foreach ($meusTickets as $tk): ?>
@@ -400,12 +427,12 @@ foreach ($listaPedidos as $lp) {
                   <span style="font-size:11px;color:#a1a1aa;display:block">Sua avaliação deste atendimento:</span>
                   <strong class="gold-solid" style="font-size:18px;letter-spacing:3px"><?= str_repeat('★', (int)$tk['avaliacao']) . str_repeat('☆', 5 - (int)$tk['avaliacao']) ?></strong>
                 <?php else: ?>
-                  <span style="font-size:12px;color:#fde68a;display:block;margin-bottom:6px;font-weight:700">Como foi nosso atendimento? Selecione as estrelas:</span>
+                  <span style="font-size:12px;color:#fde68a;display:block;margin-bottom:6px;font-weight:700">Atendimento encerrado! Avalie nosso suporte:</span>
                   <form method="POST" style="display:flex;justify-content:center;gap:6px">
                     <input type="hidden" name="acao" value="avaliar_ticket">
                     <input type="hidden" name="ticket_id" value="<?= $tk['id'] ?>">
                     <?php for ($st = 1; $st <= 5; $st++): ?>
-                      <button type="submit" name="nota" value="<?= $st ?>" class="btn btn-dark" style="padding:6px 10px;font-size:15px;color:#fbbf24;border-color:rgba(251,191,36,.35)" title="<?= $st ?> estrela(s)">★ <?= $st ?></button>
+                      <button type="submit" name="nota" value="<?= $st ?>" class="btn btn-dark" style="padding:6px 10px;font-size:15px;color:#fbbf24;border-color:rgba(251,191,36,.35)">★ <?= $st ?></button>
                     <?php endfor; ?>
                   </form>
                 <?php endif; ?>
