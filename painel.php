@@ -46,16 +46,6 @@ if (isset($_GET['sincronizar'])) {
     $msgSucesso = 'Status dos pedidos sincronizados com sucesso!';
 }
 
-function notificarAdminWhatsApp(string $texto): void {
-    $apiKey = getenv('WPP_API_KEY') ?: '';
-    if ($apiKey === '') return;
-    $url = "https://callmebot.com" . urlencode($texto) . "&apikey=" . urlencode($apiKey);
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
-    curl_exec($ch);
-    curl_close($ch);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
@@ -91,7 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user['saldo'] -= $valorTotal;
                     $efeitoCompra = strtolower($serv['plataforma']);
                     $msgSucesso = "Pedido #{$codigo} enviado com sucesso! Valor debitado: R$ " . number_format($valorTotal, 2, ',', '.');
-                    notificarAdminWhatsApp("💰 Novo Pedido #{$codigo} - @{$user['usuario']} - R$ " . number_format($valorTotal, 2, ',', '.'));
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     $msgErro = 'Erro ao processar pedido: ' . $e->getMessage();
@@ -150,7 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$user['id'], $assunto, $mensagem]);
             }
 
-            notificarAdminWhatsApp("💬 Suporte Blindagem Social - Cliente @{$user['usuario']} | Assunto: {$assunto} | Msg: {$mensagem}");
             header('Location: painel.php?aba=suporte&enviado=1');
             exit;
         }
