@@ -7,6 +7,10 @@ if (!$user) {
     exit;
 }
 
+try {
+    $pdo->exec("ALTER TABLE tickets_suporte ADD COLUMN avaliacao INTEGER DEFAULT 0");
+} catch (Exception $e) {}
+
 $msgSucesso = '';
 $msgErro = '';
 $pixGerado = null;
@@ -123,6 +127,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ->execute([$user['id'], $assunto, $mensagem]);
             $msgSucesso = 'Solicitação enviada! Você verá a resposta do administrador abaixo assim que for respondida.';
         }
+    } elseif ($acao === 'avaliar_ticket') {
+        $abaAtiva = 'suporte';
+        $nota = max(1, min(5, (int)($_POST['nota'] ?? 5)));
+        $tid  = (int)($_POST['ticket_id'] ?? 0);
+        $pdo->prepare("UPDATE tickets_suporte SET avaliacao = ? WHERE id = ? AND usuario_id = ?")
+            ->execute([$nota, $tid, $user['id']]);
+        $efeitoCompra = 'boasvindas';
+        $msgSucesso = "Obrigado pela sua avaliação de {$nota} estrela(s)!";
     }
 }
 
@@ -371,13 +383,32 @@ foreach ($listaPedidos as $lp) {
         foreach ($meusTickets as $tk): ?>
           <div style="background:#09090b;border:1px solid #27272a;border-radius:14px;padding:14px;margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <strong class="gold" style="font-size:13px"><?= htmlspecialchars($tk['assunto']) ?></strong>
+              <strong class="gold-solid" style="font-size:13px"><?= htmlspecialchars($tk['assunto']) ?></strong>
               <span class="status-badge"><?= htmlspecialchars($tk['status']) ?></span>
             </div>
             <p style="font-size:12px;color:#d4d4d8"><?= nl2br(htmlspecialchars($tk['mensagem'])) ?></p>
+
             <?php if (!empty($tk['resposta_admin'])): ?>
               <div style="margin-top:10px;padding-top:10px;border-top:1px solid #27272a;font-size:12px;color:#34d399">
-                <strong>Resposta do Admin:</strong> <?= nl2br(htmlspecialchars($tk['resposta_admin'])) ?>
+                <strong>Blindagem Social:</strong> <?= nl2br(htmlspecialchars($tk['resposta_admin'])) ?>
+              </div>
+            <?php endif; ?>
+
+            <?php if ($tk['status'] === 'encerrado'): ?>
+              <div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);text-align:center">
+                <?php if ((int)$tk['avaliacao'] > 0): ?>
+                  <span style="font-size:11px;color:#a1a1aa;display:block">Sua avaliação deste atendimento:</span>
+                  <strong class="gold-solid" style="font-size:18px;letter-spacing:3px"><?= str_repeat('★', (int)$tk['avaliacao']) . str_repeat('☆', 5 - (int)$tk['avaliacao']) ?></strong>
+                <?php else: ?>
+                  <span style="font-size:12px;color:#fde68a;display:block;margin-bottom:6px;font-weight:700">Como foi nosso atendimento? Selecione as estrelas:</span>
+                  <form method="POST" style="display:flex;justify-content:center;gap:6px">
+                    <input type="hidden" name="acao" value="avaliar_ticket">
+                    <input type="hidden" name="ticket_id" value="<?= $tk['id'] ?>">
+                    <?php for ($st = 1; $st <= 5; $st++): ?>
+                      <button type="submit" name="nota" value="<?= $st ?>" class="btn btn-dark" style="padding:6px 10px;font-size:15px;color:#fbbf24;border-color:rgba(251,191,36,.35)" title="<?= $st ?> estrela(s)">★ <?= $st ?></button>
+                    <?php endfor; ?>
+                  </form>
+                <?php endif; ?>
               </div>
             <?php endif; ?>
           </div>
