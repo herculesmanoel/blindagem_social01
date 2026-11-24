@@ -18,7 +18,7 @@ $efeitoCompra = '';
 $abaAtiva = $_GET['aba'] ?? 'pedido';
 
 if (isset($_GET['enviado'])) {
-    $msgSucesso = 'Mensagem enviada ao suporte! Nossa equipe foi notificada e responderá por aqui em instantes.';
+    $msgSucesso = 'Mensagem enviada ao suporte! Nossa equipe já foi notificada e responderá por aqui em instantes.';
 }
 
 if (isset($_GET['sincronizar'])) {
@@ -44,6 +44,24 @@ if (isset($_GET['sincronizar'])) {
         }
     }
     $msgSucesso = 'Status dos pedidos sincronizados com sucesso!';
+}
+
+function notificarMeuWhatsApp(string $mensagem): void {
+    $url = rtrim(getenv('ZAP_BOT_URL') ?: '', '/');
+    if ($url === '') return;
+    $ch = curl_init($url . '/notificar');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_TIMEOUT        => 3,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'x-secret: blindagem_zap_2026'
+        ],
+        CURLOPT_POSTFIELDS     => json_encode(['mensagem' => $mensagem])
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -81,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user['saldo'] -= $valorTotal;
                     $efeitoCompra = strtolower($serv['plataforma']);
                     $msgSucesso = "Pedido #{$codigo} enviado com sucesso! Valor debitado: R$ " . number_format($valorTotal, 2, ',', '.');
+                    notificarMeuWhatsApp("💰 *Novo Pedido - Blindagem Social*\n*Código:* #{$codigo}\n*Cliente:* @{$user['usuario']}\n*Serviço:* {$serv['titulo']}\n*Qtd:* {$quantidade}\n*Valor:* R$ " . number_format($valorTotal, 2, ',', '.'));
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     $msgErro = 'Erro ao processar pedido: ' . $e->getMessage();
@@ -103,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $pixGerado = ['valor' => $valorRecarga, 'codigo' => $copiaCola, 'txid' => $txid];
                 $efeitoCompra = 'boasvindas';
+                notificarMeuWhatsApp("💳 *PIX Gerado - Blindagem Social*\n*Cliente:* @{$user['usuario']}\n*Valor:* R$ " . number_format($valorRecarga, 2, ',', '.'));
             } catch (Exception $e) {
                 $msgErro = 'Erro ao gerar PIX Efí: ' . $e->getMessage();
             }
@@ -139,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$user['id'], $assunto, $mensagem]);
             }
 
+            notificarMeuWhatsApp("💬 *Novo Suporte - Blindagem Social*\n*Cliente:* @{$user['usuario']}\n*Assunto:* {$assunto}\n*Mensagem:* {$mensagem}");
             header('Location: painel.php?aba=suporte&enviado=1');
             exit;
         }
@@ -380,7 +401,7 @@ foreach ($listaPedidos as $lp) {
     <div class="grid-2">
       <div class="panel-card">
         <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">Central de Atendimento VIP</h2>
-        <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Envie sua mensagem abaixo. Nossa equipe recebe a notificação na hora e responde por aqui.</p>
+        <p style="font-size:13px;color:#a1a1aa;margin-bottom:18px">Envie sua mensagem abaixo. Nossa equipe já é notificada na hora e responde por aqui.</p>
         <form method="POST">
           <input type="hidden" name="acao" value="enviar_suporte">
           <div class="field"><label>Assunto / Código do Pedido</label><input type="text" name="assunto" required placeholder="Ex: Pedido #BS-..."></div>
