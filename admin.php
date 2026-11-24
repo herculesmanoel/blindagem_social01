@@ -6,6 +6,10 @@ if ($userLogado && $userLogado['usuario'] === 'admin123') {
     $_SESSION['admin_logado'] = true;
 }
 
+try {
+    $pdo->exec("ALTER TABLE tickets_suporte ADD COLUMN avaliacao INTEGER DEFAULT 0");
+} catch (Exception $e) {}
+
 $msg = '';
 if (isset($_GET['sinc'])) {
     $msg = "✓ Sincronização concluída! {$_GET['sinc']} pedido(s) atualizado(s).";
@@ -75,7 +79,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 ->execute([$resposta, (int)$_POST['ticket_id']]);
             $msg = '✓ Resposta enviada para o cliente!';
         }
-    } elseif ($acao === 'novo_servico') {
+    } elseif ($acao === 'encerrar_ticket') {
+        $tid = (int)$_POST['ticket_id'];
+        $atual = $pdo->prepare("SELECT resposta_admin FROM tickets_suporte WHERE id = ?");
+        $atual->execute([$tid]);
+        $respAnterior = trim((string)($atual->fetchColumn() ?: ''));
+        $avisoFim = ($respAnterior !== '' ? $respAnterior . "\n\n" : '') . "🔒 Atendimento encerrado pela equipe Blindagem Social. Avalie nosso atendimento abaixo!";
+        $pdo->prepare("UPDATE tickets_suporte SET resposta_admin = ?, status = 'encerrado' WHERE id = ?")
+            ->execute([$avisoFim, $tid]);
+        $msg = '✓ Chat encerrado! O cliente recebeu o aviso e a opção de avaliar com estrelas.';
+    } elseif ($acao === 'excluir_ticket') {
+        $pdo->prepare("DELETE FROM tickets_suporte WHERE id = ?")->execute([(int)$_POST['ticket_id']]);
+        $msg = '✓ Ticket excluído permanentemente!';
+    }
+
+    elseif ($acao === 'novo_servico') {
         $pdo->prepare("INSERT INTO servicos (provider_service_id, plataforma, tipo, qualidade, titulo, descricao, preco_por_mil, minimo, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)")
             ->execute([(int)$_POST['provider_id'], $_POST['plataforma'], $_POST['tipo'], $_POST['qualidade'], $_POST['titulo'], $_POST['descricao'], (float)$_POST['preco'], (int)$_POST['minimo']]);
         $msg = '✓ Novo serviço criado!';
@@ -146,237 +164,210 @@ $faturamento = (float)$pdo->query("SELECT COALESCE(SUM(valor_total),0) FROM pedi
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle Total — Blindagem Social</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-  body{background:#09090b;color:#fafafa;padding:24px}
-  .container{max-width:1240px;margin:0 auto}
-  .gold{color:#fbbf24}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
-  .kpi{background:#121215;border:1px solid #27272a;border-radius:16px;padding:18px}
-  .kpi span{font-size:11px;color:#a1a1aa;text-transform:uppercase;font-weight:700}
-  .kpi strong{display:block;font-size:22px;font-weight:900;color:#fbbf24;margin-top:4px}
-  .card{background:#121215;border:1px solid #27272a;border-radius:18px;padding:22px;margin-bottom:24px;overflow-x:auto}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
-  label{display:block;font-size:11px;color:#a1a1aa;margin-bottom:4px}
-  input,select{width:100%;padding:8px 10px;border-radius:10px;background:#09090b;border:1px solid #27272a;color:#fff;font-size:12px}
-  .btn{padding:8px 13px;border-radius:10px;font-weight:800;font-size:12px;border:none;cursor:pointer;text-decoration:none;display:inline-block}
-  .btn-gold{background:linear-gradient(135deg,#fbbf24,#d97706);color:#09090b}
-  .btn-red{background:rgba(239,68,68,.16);color:#f87171}
-  .btn-dark{background:#18181b;color:#fff;border:1px solid #27272a}
-  .msg{background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.35);color:#fbbf24;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;margin-bottom:20px}
-  table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;margin-top:12px}
-  th{color:#a1a1aa;padding:10px;border-bottom:1px solid #27272a}
-  td{padding:9px 8px;border-bottom:1px solid #1f1f23;vertical-align:top}
-</style>
+<title>Controle Total VIP — Blindagem Social</title>
+<link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-<div class="container">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-    <h1 style="font-size:24px;font-weight:900">Controle Total — <span class="gold">Blindagem Social</span></h1>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a href="index.php" class="brand"><span class="badge-logo">B</span><span>Admin <span class="gold">Blindagem Social</span></span></a>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="cron_status.php?voltar=admin" class="btn btn-gold">🔄 Sincronizar Pedidos</a>
-      <a href="painel.php" class="btn btn-dark">Painel Cliente</a>
-      <a href="index.php" class="btn btn-dark">Ver Site</a>
-      <a href="auth.php?sair=1" class="btn btn-red">Sair</a>
+      <a href="cron_status.php?voltar=admin" class="btn btn-gold" style="padding:8px 14px;font-size:12px">🔄 Sincronizar Pedidos</a>
+      <a href="painel.php" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Painel Cliente</a>
+      <a href="index.php" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Ver Site</a>
+      <a href="auth.php?sair=1" class="btn btn-dark" style="padding:8px 14px;font-size:12px;color:#f87171">Sair</a>
     </div>
   </div>
+</header>
 
-  <div class="kpis">
-    <div class="kpi"><span>Saldo no Fornecedor SMM</span><strong><?= htmlspecialchars($saldoFornecedor) ?></strong></div>
-    <div class="kpi"><span>Faturamento em Pedidos</span><strong>R$ <?= number_format($faturamento, 2, ',', '.') ?></strong></div>
-    <div class="kpi"><span>Chamados de Suporte</span><strong style="color:#fff"><?= count($tickets) ?></strong></div>
-    <div class="kpi"><span>Serviços na Loja</span><strong style="color:#fff"><?= count($servicos) ?></strong></div>
+<main class="container" style="padding-top:24px;padding-bottom:48px">
+  <div class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:0">
+    <div class="stat-box"><span>Saldo no Fornecedor SMM</span><strong><?= htmlspecialchars($saldoFornecedor) ?></strong></div>
+    <div class="stat-box"><span>Faturamento Total</span><strong>R$ <?= number_format($faturamento, 2, ',', '.') ?></strong></div>
+    <div class="stat-box"><span>Chamados de Suporte</span><strong style="color:#fff"><?= count($tickets) ?></strong></div>
+    <div class="stat-box"><span>Serviços na Loja</span><strong style="color:#fff"><?= count($servicos) ?></strong></div>
   </div>
 
-  <?php if ($msg): ?><div class="msg"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+  <?php if ($msg): ?><div class="alert-ok"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
 
-  <!-- SOLICITAÇÕES DE SUPORTE DOS CLIENTES -->
-  <div class="card" style="border-color:rgba(251,191,36,.4)">
-    <h2 style="font-size:16px">💬 Solicitações de Suporte dos Clientes</h2>
+  <div class="panel-card table-wrap" style="border-color:rgba(251,191,36,.45)">
+    <h2 style="font-size:18px;font-weight:900;margin-bottom:4px">💬 Central de Atendimento & Tickets</h2>
+    <p style="font-size:12px;color:#a1a1aa;margin-bottom:14px">Responda, encerre a conversa (envia aviso + estrelas para o cliente) ou exclua tickets encerrados.</p>
     <table>
-      <thead><tr><th>Cliente</th><th>Assunto</th><th>Mensagem do Cliente</th><th>Status</th><th>Responder ao Cliente</th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Assunto & Mensagem</th><th>Status & Nota</th><th>Ações do Atendimento</th></tr></thead>
       <tbody>
         <?php foreach ($tickets as $t): ?>
         <tr>
-          <td><strong>@<?= htmlspecialchars($t['nome_user']) ?></strong><br><span style="color:#71717a"><?= htmlspecialchars($t['email']) ?></span></td>
-          <td class="gold"><strong><?= htmlspecialchars($t['assunto']) ?></strong></td>
-          <td style="max-width:260px"><?= nl2br(htmlspecialchars($t['mensagem'])) ?></td>
-          <td><strong><?= strtoupper($t['status']) ?></strong></td>
+          <td><strong>@<?= htmlspecialchars($t['nome_user']) ?></strong><br><span style="font-size:11px;color:#71717a"><?= htmlspecialchars($t['email']) ?></span></td>
+          <td style="max-width:300px">
+            <strong class="gold-solid"><?= htmlspecialchars($t['assunto']) ?></strong>
+            <p style="font-size:12px;color:#d4d4d8;margin-top:4px"><?= nl2br(htmlspecialchars($t['mensagem'])) ?></p>
+          </td>
           <td>
-            <form method="POST" style="display:flex;gap:6px;min-width:240px">
-              <input type="hidden" name="acao" value="responder_ticket">
-              <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
-              <input type="text" name="resposta" value="<?= htmlspecialchars($t['resposta_admin'] ?? '') ?>" placeholder="Digite sua resposta..." required>
-              <button class="btn btn-gold">Enviar</button>
-            </form>
+            <span class="status-badge"><?= htmlspecialchars($t['status']) ?></span>
+            <?php if (!empty($t['avaliacao'])): ?>
+              <div class="gold-solid" style="font-size:14px;margin-top:6px;letter-spacing:2px"><?= str_repeat('★', (int)$t['avaliacao']) . str_repeat('☆', 5 - (int)$t['avaliacao']) ?></div>
+            <?php endif; ?>
+          </td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:260px">
+              <?php if ($t['status'] !== 'encerrado'): ?>
+                <form method="POST" style="display:flex;gap:6px">
+                  <input type="hidden" name="acao" value="responder_ticket">
+                  <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
+                  <input type="text" name="resposta" value="<?= htmlspecialchars($t['resposta_admin'] ?? '') ?>" placeholder="Responder cliente..." required style="padding:8px 10px;border-radius:10px;background:#070709;border:1px solid #27272a;color:#fff;font-size:12px;flex:1">
+                  <button class="btn btn-gold" style="padding:8px 12px;font-size:12px">Enviar</button>
+                </form>
+              <?php endif; ?>
+              <div style="display:flex;gap:6px">
+                <?php if ($t['status'] !== 'encerrado'): ?>
+                  <form method="POST" style="flex:1">
+                    <input type="hidden" name="acao" value="encerrar_ticket">
+                    <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
+                    <button class="btn btn-dark" style="width:100%;padding:7px 10px;font-size:11px;border-color:rgba(251,191,36,.4);color:#fbbf24">🔒 Encerrar Chat</button>
+                  </form>
+                <?php endif; ?>
+                <form method="POST" onsubmit="return confirm('Excluir este ticket?')" style="flex:1">
+                  <input type="hidden" name="acao" value="excluir_ticket">
+                  <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
+                  <button class="btn btn-dark" style="width:100%;padding:7px 10px;font-size:11px;color:#f87171">🗑️ Excluir</button>
+                </form>
+              </div>
+            </div>
           </td>
         </tr>
         <?php endforeach; ?>
         <?php if (empty($tickets)): ?>
-          <tr><td colspan="5" style="text-align:center;color:#71717a;padding:18px">Nenhuma solicitação de suporte enviada ainda.</td></tr>
+          <tr><td colspan="4" style="text-align:center;color:#71717a;padding:20px">Nenhum chamado de suporte no momento.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
   </div>
 
-  <!-- IMPORTADOR AUTOMÁTICO -->
-  <div class="card">
-    <h2 style="font-size:16px;margin-bottom:12px">⚡ Importador Automático & Reajuste em Massa</h2>
+  <div class="panel-card">
+    <h2 style="font-size:17px;font-weight:900;margin-bottom:12px">⚡ Importador Automático & Reajuste em Massa</h2>
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end">
       <form method="POST" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
         <input type="hidden" name="acao" value="importar_fornecedor">
-        <div><label>Margem Lucro (%)</label><input type="number" name="margem" value="100" min="1" style="width:120px"></div>
-        <div><label>Qtd Importar</label><input type="number" name="limite" value="40" min="1" max="150" style="width:110px"></div>
-        <button class="btn btn-gold">Importar do Fornecedor</button>
+        <div class="field" style="margin-bottom:0"><label>Margem Lucro (%)</label><input type="number" name="margem" value="100" min="1" style="width:120px;padding:9px"></div>
+        <div class="field" style="margin-bottom:0"><label>Qtd Importar</label><input type="number" name="limite" value="40" min="1" max="150" style="width:110px;padding:9px"></div>
+        <button class="btn btn-gold" style="padding:10px 16px">Importar do Fornecedor</button>
       </form>
       <form method="POST" style="display:flex;gap:8px;align-items:end">
         <input type="hidden" name="acao" value="reajustar_todos">
-        <div><label>Reajustar Todos (%)</label><input type="number" step="1" name="percentual" placeholder="10 ou -10" style="width:130px" required></div>
-        <button class="btn btn-dark">Aplicar %</button>
+        <div class="field" style="margin-bottom:0"><label>Reajustar Todos (%)</label><input type="number" step="1" name="percentual" placeholder="10 ou -10" style="width:130px;padding:9px" required></div>
+        <button class="btn btn-dark" style="padding:10px 14px">Aplicar %</button>
       </form>
       <form method="POST" onsubmit="return confirm('Apagar TODOS os serviços?')">
         <input type="hidden" name="acao" value="limpar_servicos">
-        <button class="btn btn-red">Limpar Tudo</button>
+        <button class="btn btn-dark" style="padding:10px 14px;color:#f87171">Limpar Tudo</button>
       </form>
     </div>
   </div>
 
-  <div class="card">
-    <h2 style="font-size:16px;margin-bottom:12px">➕ Cadastrar Serviço Manual</h2>
-    <form method="POST" class="grid">
-      <input type="hidden" name="acao" value="novo_servico">
-      <div><label>ID Fornecedor</label><input type="number" name="provider_id" required></div>
-      <div><label>Plataforma</label><select name="plataforma"><option>Instagram</option><option>TikTok</option><option>YouTube</option><option>Facebook</option><option>Telegram</option><option>Kwai</option></select></div>
-      <div><label>Tipo</label><select name="tipo"><option>Seguidores</option><option>Curtidas</option><option>Visualizacoes</option></select></div>
-      <div><label>Qualidade</label><select name="qualidade"><option>Exclusivo</option><option>Premium</option><option>Avancado</option></select></div>
-      <div><label>Título na Loja</label><input type="text" name="titulo" required></div>
-      <div><label>Preço Venda / 1k</label><input type="number" step="0.01" name="preco" required></div>
-      <div><label>Mínimo</label><input type="number" name="minimo" value="100" required></div>
-      <input type="hidden" name="descricao" value="Entrega automática sem senha. Deixe o perfil público.">
-      <button class="btn btn-gold">Criar Serviço</button>
-    </form>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle Total VIP — Blindagem Social</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a href="index.php" class="brand"><span class="badge-logo">B</span><span>Admin <span class="gold">Blindagem Social</span></span></a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="cron_status.php?voltar=admin" class="btn btn-gold" style="padding:8px 14px;font-size:12px">🔄 Sincronizar Pedidos</a>
+      <a href="painel.php" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Painel Cliente</a>
+      <a href="index.php" class="btn btn-dark" style="padding:8px 14px;font-size:12px">Ver Site</a>
+      <a href="auth.php?sair=1" class="btn btn-dark" style="padding:8px 14px;font-size:12px;color:#f87171">Sair</a>
+    </div>
+  </div>
+</header>
+
+<main class="container" style="padding-top:24px;padding-bottom:48px">
+  <div class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:0">
+    <div class="stat-box"><span>Saldo no Fornecedor SMM</span><strong><?= htmlspecialchars($saldoFornecedor) ?></strong></div>
+    <div class="stat-box"><span>Faturamento Total</span><strong>R$ <?= number_format($faturamento, 2, ',', '.') ?></strong></div>
+    <div class="stat-box"><span>Chamados de Suporte</span><strong style="color:#fff"><?= count($tickets) ?></strong></div>
+    <div class="stat-box"><span>Serviços na Loja</span><strong style="color:#fff"><?= count($servicos) ?></strong></div>
   </div>
 
-  <div class="card">
-    <h2 style="font-size:16px">📋 Gerenciar Serviços</h2>
+  <?php if ($msg): ?><div class="alert-ok"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+
+  <div class="panel-card table-wrap" style="border-color:rgba(251,191,36,.45)">
+    <h2 style="font-size:18px;font-weight:900;margin-bottom:4px">💬 Central de Atendimento & Tickets</h2>
+    <p style="font-size:12px;color:#a1a1aa;margin-bottom:14px">Responda, encerre a conversa (envia aviso + estrelas para o cliente) ou exclua tickets encerrados.</p>
     <table>
-      <thead><tr><th>Plataforma</th><th>Título</th><th>ID Forn.</th><th>Preço / 1k</th><th>Mínimo</th><th>Status</th><th>Ações</th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Assunto & Mensagem</th><th>Status & Nota</th><th>Ações do Atendimento</th></tr></thead>
       <tbody>
-        <?php foreach ($servicos as $s): ?>
+        <?php foreach ($tickets as $t): ?>
         <tr>
-          <form method="POST">
-            <input type="hidden" name="acao" value="editar_servico">
-            <input type="hidden" name="id" value="<?= $s['id'] ?>">
-            <td>
-              <select name="plataforma" style="width:105px">
-                <?php foreach (['Instagram','TikTok','YouTube','Facebook','Telegram','Kwai'] as $pl): ?>
-                  <option <?= $s['plataforma'] === $pl ? 'selected' : '' ?>><?= $pl ?></option>
-                <?php endforeach; ?>
-              </select>
-            </td>
-            <td><input type="text" name="titulo" value="<?= htmlspecialchars($s['titulo']) ?>" style="min-width:190px"></td>
-            <td><input type="number" name="provider_id" value="<?= $s['provider_service_id'] ?>" style="width:75px"></td>
-            <td><input type="number" step="0.01" name="preco" value="<?= $s['preco_por_mil'] ?>" style="width:85px"></td>
-            <td><input type="number" name="minimo" value="<?= $s['minimo'] ?>" style="width:75px"></td>
-            <td>
-              <select name="ativo" style="width:85px">
-                <option value="1" <?= $s['ativo'] ? 'selected' : '' ?>>Ativo</option>
-                <option value="0" <?= !$s['ativo'] ? 'selected' : '' ?>>Pausado</option>
-              </select>
-            </td>
-            <td style="display:flex;gap:5px">
-              <button class="btn btn-gold">Salvar</button>
-          </form>
-          <form method="POST" onsubmit="return confirm('Excluir?')">
-            <input type="hidden" name="acao" value="excluir_servico">
-            <input type="hidden" name="id" value="<?= $s['id'] ?>">
-            <button class="btn btn-red">X</button>
-          </form>
-            </td>
+          <td><strong>@<?= htmlspecialchars($t['nome_user']) ?></strong><br><span style="font-size:11px;color:#71717a"><?= htmlspecialchars($t['email']) ?></span></td>
+          <td style="max-width:300px">
+            <strong class="gold-solid"><?= htmlspecialchars($t['assunto']) ?></strong>
+            <p style="font-size:12px;color:#d4d4d8;margin-top:4px"><?= nl2br(htmlspecialchars($t['mensagem'])) ?></p>
+          </td>
+          <td>
+            <span class="status-badge"><?= htmlspecialchars($t['status']) ?></span>
+            <?php if (!empty($t['avaliacao'])): ?>
+              <div class="gold-solid" style="font-size:14px;margin-top:6px;letter-spacing:2px"><?= str_repeat('★', (int)$t['avaliacao']) . str_repeat('☆', 5 - (int)$t['avaliacao']) ?></div>
+            <?php endif; ?>
+          </td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:260px">
+              <?php if ($t['status'] !== 'encerrado'): ?>
+                <form method="POST" style="display:flex;gap:6px">
+                  <input type="hidden" name="acao" value="responder_ticket">
+                  <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
+                  <input type="text" name="resposta" value="<?= htmlspecialchars($t['resposta_admin'] ?? '') ?>" placeholder="Responder cliente..." required style="padding:8px 10px;border-radius:10px;background:#070709;border:1px solid #27272a;color:#fff;font-size:12px;flex:1">
+                  <button class="btn btn-gold" style="padding:8px 12px;font-size:12px">Enviar</button>
+                </form>
+              <?php endif; ?>
+              <div style="display:flex;gap:6px">
+                <?php if ($t['status'] !== 'encerrado'): ?>
+                  <form method="POST" style="flex:1">
+                    <input type="hidden" name="acao" value="encerrar_ticket">
+                    <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
+                    <button class="btn btn-dark" style="width:100%;padding:7px 10px;font-size:11px;border-color:rgba(251,191,36,.4);color:#fbbf24">🔒 Encerrar Chat</button>
+                  </form>
+                <?php endif; ?>
+                <form method="POST" onsubmit="return confirm('Excluir este ticket?')" style="flex:1">
+                  <input type="hidden" name="acao" value="excluir_ticket">
+                  <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
+                  <button class="btn btn-dark" style="width:100%;padding:7px 10px;font-size:11px;color:#f87171">🗑️ Excluir</button>
+                </form>
+              </div>
+            </div>
+          </td>
         </tr>
         <?php endforeach; ?>
+        <?php if (empty($tickets)): ?>
+          <tr><td colspan="4" style="text-align:center;color:#71717a;padding:20px">Nenhum chamado de suporte no momento.</td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>
 
-  <div class="card">
-    <h2 style="font-size:16px">👥 Gerenciar Clientes</h2>
-    <table>
-      <thead><tr><th>Usuário</th><th>E-mail</th><th>Saldo</th><th>Ajustar Saldo (R$)</th><th>Nova Senha</th><th>Excluir</th></tr></thead>
-      <tbody>
-        <?php foreach ($usuarios as $u): ?>
-        <tr>
-          <td><strong>@<?= htmlspecialchars($u['usuario']) ?></strong></td>
-          <td><?= htmlspecialchars($u['email']) ?></td>
-          <td class="gold"><strong>R$ <?= number_format($u['saldo'], 2, ',', '.') ?></strong></td>
-          <td>
-            <form method="POST" style="display:flex;gap:5px;max-width:190px">
-              <input type="hidden" name="acao" value="ajustar_saldo">
-              <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-              <input type="number" step="0.01" name="valor" placeholder="10 ou -5" required>
-              <button class="btn btn-gold">OK</button>
-            </form>
-          </td>
-          <td>
-            <form method="POST" style="display:flex;gap:5px;max-width:190px">
-              <input type="hidden" name="acao" value="reset_senha">
-              <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-              <input type="text" name="nova_senha" placeholder="Mín. 6 dígitos" required>
-              <button class="btn btn-dark">Trocar</button>
-            </form>
-          </td>
-          <td>
-            <form method="POST" onsubmit="return confirm('Excluir?')">
-              <input type="hidden" name="acao" value="excluir_usuario">
-              <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-              <button class="btn btn-red">Excluir</button>
-            </form>
-          </td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
+  <div class="panel-card">
+    <h2 style="font-size:17px;font-weight:900;margin-bottom:12px">⚡ Importador Automático & Reajuste em Massa</h2>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end">
+      <form method="POST" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+        <input type="hidden" name="acao" value="importar_fornecedor">
+        <div class="field" style="margin-bottom:0"><label>Margem Lucro (%)</label><input type="number" name="margem" value="100" min="1" style="width:120px;padding:9px"></div>
+        <div class="field" style="margin-bottom:0"><label>Qtd Importar</label><input type="number" name="limite" value="40" min="1" max="150" style="width:110px;padding:9px"></div>
+        <button class="btn btn-gold" style="padding:10px 16px">Importar do Fornecedor</button>
+      </form>
+      <form method="POST" style="display:flex;gap:8px;align-items:end">
+        <input type="hidden" name="acao" value="reajustar_todos">
+        <div class="field" style="margin-bottom:0"><label>Reajustar Todos (%)</label><input type="number" step="1" name="percentual" placeholder="10 ou -10" style="width:130px;padding:9px" required></div>
+        <button class="btn btn-dark" style="padding:10px 14px">Aplicar %</button>
+      </form>
+      <form method="POST" onsubmit="return confirm('Apagar TODOS os serviços?')">
+        <input type="hidden" name="acao" value="limpar_servicos">
+        <button class="btn btn-dark" style="padding:10px 14px;color:#f87171">Limpar Tudo</button>
+      </form>
+    </div>
   </div>
-
-  <div class="card">
-    <h2 style="font-size:16px">📦 Pedidos & Reenvio API</h2>
-    <table>
-      <thead><tr><th>Código</th><th>Cliente</th><th>Serviço</th><th>Link</th><th>Qtd</th><th>Valor</th><th>ID Forn.</th><th>Status</th><th>Ações</th></tr></thead>
-      <tbody>
-        <?php foreach ($pedidos as $p): ?>
-        <tr>
-          <td class="gold"><strong><?= htmlspecialchars($p['codigo_rastreio']) ?></strong></td>
-          <td>@<?= htmlspecialchars($p['nome_user'] ?? 'visitante') ?></td>
-          <td><?= htmlspecialchars($p['titulo']) ?></td>
-          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($p['link_destino']) ?></td>
-          <td><?= $p['quantidade'] ?></td>
-          <td>R$ <?= number_format($p['valor_total'], 2, ',', '.') ?></td>
-          <td><?= htmlspecialchars($p['provider_order_id'] ?? 'Pendente') ?></td>
-          <td>
-            <form method="POST" style="display:flex;gap:4px">
-              <input type="hidden" name="acao" value="status_pedido">
-              <input type="hidden" name="pedido_id" value="<?= $p['id'] ?>">
-              <select name="status" style="width:110px">
-                <?php foreach (['aguardando','processando','concluido','cancelado'] as $st): ?>
-                  <option value="<?= $st ?>" <?= $p['status_entrega'] === $st ? 'selected' : '' ?>><?= strtoupper($st) ?></option>
-                <?php endforeach; ?>
-              </select>
-              <button class="btn btn-dark">OK</button>
-            </form>
-          </td>
-          <td>
-            <form method="POST">
-              <input type="hidden" name="acao" value="reenviar_pedido">
-              <input type="hidden" name="pedido_id" value="<?= $p['id'] ?>">
-              <button class="btn btn-gold">Reenviar API</button>
-            </form>
-          </td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-</div>
-</body>
-</html>
