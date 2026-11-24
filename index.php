@@ -13,13 +13,17 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
 </head>
 <body>
 
+<div class="promo-banner">
+  ⚡ OFERTA RELÂMPAGO ATIVA: Preços de atacado liberados no PIX por <span id="promo-timer" style="background:#050507;color:#fde047;padding:2px 8px;border-radius:6px;margin-left:4px">14:59</span>
+</div>
+
 <div class="live-bar">
   <div class="live-track">
-    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de comprar <strong class="gold-solid">1.000 Seguidores Instagram BR</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold-solid">500 Curtidas Reais</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@pedrohenrique.oficial</strong> acabou de pedir <strong class="gold-solid">5.000 Visualizações Reels</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold-solid">R$ 50,00 via PIX</strong></span>
-    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold-solid">2.000 Seguidores TikTok</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@lucas.mendes</strong> acabou de comprar <strong class="gold-solid">5.000 Seguidores Instagram BR</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@camila_oliveira</strong> acabou de pedir <strong class="gold-solid">2.500 Curtidas Reais</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@pedrohenrique.oficial</strong> acabou de pedir <strong class="gold-solid">10.000 Visualizações Reels</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@studiobella_sp</strong> adicionou <strong class="gold-solid">R$ 100,00 via PIX</strong></span>
+    <span class="live-item"><span class="dot-live"></span> <strong>@rafael.trader</strong> acabou de pedir <strong class="gold-solid">3.000 Seguidores TikTok</strong></span>
   </div>
 </div>
 
@@ -31,9 +35,8 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
     </a>
     <nav class="nav-links">
       <a href="#simulador">Simulador</a>
-      <a href="#servicos">Catálogo VIP</a>
-      <a href="#como">Como funciona</a>
-      <a href="#faq">Dúvidas</a>
+      <a href="#servicos">Mais Vendidos</a>
+      <a href="#avaliacoes">Avaliações ★</a>
       <a href="consultar.php">Rastrear</a>
     </nav>
     <div style="display:flex;gap:10px">
@@ -50,23 +53,26 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
 <section class="hero">
   <div class="container hero-grid">
     <div>
-      <span class="pill">👑 Plataforma Oficial • PIX Automático a partir de R$ 1,00</span>
-      <h1>Eleve seu perfil ao nível <span class="gold">autoridade máxima</span> em segundos</h1>
-      <p class="sub">Seguidores brasileiros, curtidas, visualizações e engajamento automático para Instagram, TikTok e YouTube. Sem pedir sua senha.</p>
+      <span class="pill">👑 +18.400 Clientes Ativos • PIX Automático a partir de R$ 1,00</span>
+      <h1>Transforme seu perfil em uma <span class="gold">máquina de autoridade</span> hoje</h1>
+      <p class="sub">Perfis com poucos seguidores perdem vendas todos os dias. Impulsione seu Instagram, TikTok e YouTube em segundos, sem nunca pedir sua senha.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <a href="auth.php?modo=cadastro" class="btn btn-gold">Começar agora — Grátis &rarr;</a>
-        <a href="#simulador" class="btn btn-dark">Simular valores</a>
+        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:15px 28px;font-size:15px">Quero Impulsionar Agora &rarr;</a>
+        <a href="#simulador" class="btn btn-dark">Simular Pacote</a>
       </div>
       <div class="stats">
-        <div><strong>+4,2 Milhões</strong><span>Pedidos entregues</span></div>
-        <div><strong>R$ 1,00</strong><span>Recarga mínima PIX</span></div>
-        <div><strong>24/7</strong><span>Envio automático</span></div>
+        <div><strong>+4,8 Milhões</strong><span>Pedidos entregues</span></div>
+        <div><strong>30 seg</strong><span>Início da entrega</span></div>
+        <div><strong>4.9 / 5 ★</strong><span>Nota dos clientes</span></div>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:0">
-      <h2 style="font-size:21px;font-weight:900">Acesso VIP — <span class="gold">Blindagem Social</span></h2>
-      <div class="alert">🔒 Segurança total: use apenas seu login do <strong>nosso site</strong>.</div>
+    <div class="card" style="margin-bottom:0;border-color:rgba(251,191,36,.45)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="font-size:21px;font-weight:900">Acesso VIP — <span class="gold">Blindagem</span></h2>
+        <span class="badge">GRÁTIS</span>
+      </div>
+      <div class="alert">🔒 Segurança total: usamos apenas o link público do seu perfil.</div>
       <?php if ($user): ?>
         <p style="font-size:14px;margin-bottom:16px">Conectado como <strong class="gold-solid">@<?= htmlspecialchars($user['usuario']) ?></strong><br>Saldo disponível: <strong class="gold-solid">R$ <?= number_format($user['saldo'], 2, ',', '.') ?></strong></p>
         <a href="painel.php" class="btn btn-gold" style="width:100%">Abrir Meu Painel &rarr;</a>
@@ -77,26 +83,26 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
           <div class="field"><label>Senha</label><input type="password" name="senha" required placeholder="••••••••"></div>
           <button type="submit" class="btn btn-gold" style="width:100%">Entrar no Painel &rarr;</button>
         </form>
-        <p style="text-align:center;font-size:13px;color:#a1a1aa;margin-top:16px">Ainda não tem conta? <a href="auth.php?modo=cadastro" class="gold-solid" style="font-weight:800">Criar Conta Grátis</a></p>
+        <p style="text-align:center;font-size:13px;color:#a1a1aa;margin-top:16px">Primeira vez aqui? <a href="auth.php?modo=cadastro" class="gold-solid" style="font-weight:800">Criar Conta Grátis em 20s &rarr;</a></p>
       <?php endif; ?>
     </div>
   </div>
 </section>
 
-<!-- Simulador Interativo de Preços -->
-<section id="simulador" class="container" style="margin-bottom:40px">
-  <div class="card" style="border-color:rgba(251,191,36,.4);background:linear-gradient(135deg,#14130e,#0c0c0f)">
+<!-- Simulador Interativo com Atalhos Rápidos -->
+<section id="simulador" class="container" style="margin-bottom:44px">
+  <div class="card" style="border-color:rgba(251,191,36,.45);background:linear-gradient(135deg,#16140d,#09090c)">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px">
       <div>
-        <span class="badge">Calculadora Instantânea</span>
-        <h2 style="font-size:22px;font-weight:900;margin-top:6px">Simule quanto custa impulsionar seu perfil agora</h2>
+        <span class="badge">Calculadora VIP</span>
+        <h2 style="font-size:23px;font-weight:900;margin-top:6px">Veja como custa pouco viralizar seu perfil</h2>
       </div>
-      <span style="font-size:12px;color:#34d399;font-weight:700">✓ Entrega inicia em segundos</span>
+      <span style="font-size:12px;color:#34d399;font-weight:800">⚡ Ativação imediata após o pedido</span>
     </div>
 
     <div class="grid-3" style="align-items:end">
       <div class="field" style="margin-bottom:0">
-        <label>Escolha o Pacote</label>
+        <label>1. Escolha o Serviço</label>
         <select id="sim-srv" onchange="calcularSimulador()">
           <?php foreach ($servicos as $s): ?>
             <option value="<?= $s['preco_por_mil'] ?>" data-min="<?= $s['minimo'] ?>">
@@ -106,25 +112,31 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
         </select>
       </div>
       <div class="field" style="margin-bottom:0">
-        <label>Quantidade Desejada</label>
-        <input type="number" id="sim-qtd" value="1000" min="100" step="100" oninput="calcularSimulador()">
-      </div>
-      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;background:#070709;border:1px solid rgba(251,191,36,.35);padding:10px 16px;border-radius:14px">
-        <div>
-          <span style="font-size:11px;color:#a1a1aa;display:block">Investimento PIX</span>
-          <strong id="sim-total" style="font-size:22px;color:#fbbf24">R$ 0,00</strong>
+        <label>2. Quantidade (ou clique rápido)</label>
+        <input type="number" id="sim-qtd" value="2500" min="100" step="100" oninput="calcularSimulador()">
+        <div class="quick-pills">
+          <button type="button" class="q-pill" onclick="setSimQtd(1000)">1k</button>
+          <button type="button" class="q-pill" onclick="setSimQtd(2500)">2.5k 🔥</button>
+          <button type="button" class="q-pill" onclick="setSimQtd(5000)">5k 👑</button>
+          <button type="button" class="q-pill" onclick="setSimQtd(10000)">10k 💎</button>
         </div>
-        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:10px 16px">Pedir &rarr;</a>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;background:#050507;border:1px solid rgba(251,191,36,.45);padding:14px 18px;border-radius:16px">
+        <div>
+          <span style="font-size:11px;color:#a1a1aa;display:block">Total no PIX</span>
+          <strong id="sim-total" style="font-size:24px;color:#fbbf24">R$ 0,00</strong>
+        </div>
+        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:12px 18px">Pedir Agora &rarr;</a>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Catálogo VIP com Filtro por Plataforma -->
+<!-- Catálogo VIP com Selos de Destaque -->
 <section id="servicos" class="container" style="padding-bottom:60px">
   <div style="text-align:center;margin-bottom:28px">
-    <span style="color:#fbbf24;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px">Catálogo Exclusivo</span>
-    <h2 style="font-size:32px;font-weight:900;margin-top:6px">Pacotes mais vendidos hoje</h2>
+    <span style="color:#fbbf24;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px">Escolha Sua Plataforma</span>
+    <h2 style="font-size:32px;font-weight:900;margin-top:6px">Pacotes com maior taxa de resultado</h2>
   </div>
 
   <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:28px">
@@ -136,31 +148,50 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
   </div>
 
   <div class="grid-3" id="vitrine-cards">
-    <?php foreach (array_slice($servicos, 0, 9) as $s): ?>
-    <div class="srv-card" data-plat="<?= htmlspecialchars($s['plataforma']) ?>">
+    <?php foreach (array_slice($servicos, 0, 9) as $idxSrv => $s): ?>
+    <div class="srv-card" data-plat="<?= htmlspecialchars($s['plataforma']) ?>" style="<?= $idxSrv === 0 ? 'border-color:rgba(251,191,36,.6);box-shadow:0 16px 40px rgba(245,158,11,.15)' : '' ?>">
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <span class="badge"><?= htmlspecialchars($s['qualidade']) ?></span>
+          <span class="badge"><?= $idxSrv === 0 ? '🔥 MAIS VENDIDO' : ($idxSrv === 1 ? '👑 RECOMENDADO' : htmlspecialchars($s['qualidade'])) ?></span>
           <span style="font-size:12px;color:#71717a;font-weight:700"><?= htmlspecialchars($s['plataforma']) ?></span>
         </div>
         <h3 style="font-size:17px;margin-bottom:8px;font-weight:800"><?= htmlspecialchars($s['titulo']) ?></h3>
         <p style="font-size:13px;color:#a1a1aa"><?= htmlspecialchars($s['descricao']) ?></p>
       </div>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid #27272a;display:flex;justify-content:space-between;align-items:center">
-        <div><span style="font-size:11px;color:#71717a;display:block">Por 1.000</span><span class="price">R$ <?= number_format($s['preco_por_mil'], 2, ',', '.') ?></span></div>
-        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:10px 18px;font-size:13px">Comprar &rarr;</a>
+        <div><span style="font-size:11px;color:#71717a;display:block">A partir de (1.000)</span><span class="price">R$ <?= number_format($s['preco_por_mil'], 2, ',', '.') ?></span></div>
+        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:10px 18px;font-size:13px">Impulsionar &rarr;</a>
       </div>
     </div>
     <?php endforeach; ?>
   </div>
 </section>
 
-<!-- Como Funciona -->
-<section id="como" class="container" style="padding-bottom:60px">
+<!-- Prova Social / Avaliações 5 Estrelas -->
+<section id="avaliacoes" class="container" style="padding-bottom:60px">
+  <div style="text-align:center;margin-bottom:28px">
+    <span class="badge">Avaliações Verificadas</span>
+    <h2 style="font-size:30px;font-weight:900;margin-top:8px">Quem usa a <span class="gold">Blindagem Social</span> recomenda</h2>
+  </div>
   <div class="grid-3">
-    <div class="card" style="margin-bottom:0"><span class="badge">01 • Cadastro</span><h3 style="margin:14px 0 8px;font-size:18px">Crie sua conta grátis</h3><p style="font-size:13px;color:#a1a1aa">Menos de 30 segundos. Sem cartão de crédito e sem pedir senha das suas redes.</p></div>
-    <div class="card" style="margin-bottom:0"><span class="badge">02 • Recarga PIX</span><h3 style="margin:14px 0 8px;font-size:18px">Adicione saldo na hora</h3><p style="font-size:13px;color:#a1a1aa">Recarregue a partir de R$ 1,00 via PIX Efí com liberação automática 24h.</p></div>
-    <div class="card" style="margin-bottom:0"><span class="badge">03 • Resultado</span><h3 style="margin:14px 0 8px;font-size:18px">Envie seu pedido</h3><p style="font-size:13px;color:#a1a1aa">Informe o link público e acompanhe cada etapa em tempo real no painel.</p></div>
+    <div class="card" style="margin-bottom:0">
+      <div class="gold-solid" style="font-size:18px;letter-spacing:2px;margin-bottom:10px">★★★★★</div>
+      <p style="font-size:13.5px;color:#e4e4e7;margin-bottom:14px">"Recarreguei R$ 50 no PIX e caiu na mesma hora. Coloquei 5 mil seguidores na minha loja e já fechei 3 vendas no mesmo dia!"</p>
+      <strong style="font-size:13px;color:#fff">@mariana.boutique</strong>
+      <span style="font-size:11px;color:#71717a;display:block">Cliente Verificada • São Paulo, SP</span>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="gold-solid" style="font-size:18px;letter-spacing:2px;margin-bottom:10px">★★★★★</div>
+      <p style="font-size:13.5px;color:#e4e4e7;margin-bottom:14px">"Melhor painel que já usei. Não pede senha e os views no Reels e TikTok começam a subir em menos de 1 minuto."</p>
+      <strong style="font-size:13px;color:#fff">@lucas.cortesvip</strong>
+      <span style="font-size:11px;color:#71717a;display:block">Criador de Conteúdo • Recife, PE</span>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="gold-solid" style="font-size:18px;letter-spacing:2px;margin-bottom:10px">★★★★★</div>
+      <p style="font-size:13.5px;color:#e4e4e7;margin-bottom:14px">"Uso tanto para o meu perfil profissional quanto para clientes da minha agência. Preço imbatível e suporte nota 10."</p>
+      <strong style="font-size:13px;color:#fff">@agencia.escaladigital</strong>
+      <span style="font-size:11px;color:#71717a;display:block">Gestor de Tráfego • Curitiba, PR</span>
+    </div>
   </div>
 </section>
 
@@ -168,7 +199,7 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
 <section id="faq" class="container faq" style="max-width:820px;padding-bottom:60px">
   <h2 style="font-size:28px;font-weight:900;text-align:center;margin-bottom:24px">Perguntas Frequentes</h2>
   <details><summary>Preciso informar minha senha do Instagram?</summary><p>Nunca. Trabalhamos exclusivamente com o link público do seu perfil ou publicação.</p></details>
-  <details><summary>Qual o valor mínimo para adicionar saldo via PIX?</summary><p>A partir de R$ 1,00 via PIX Efí com liberação automática na sua carteira.</p></details>
+  <details><summary>Qual o valor mínimo para adicionar saldo via PIX?</summary><p>A partir de R$ 1,00 via PIX Efí com liberação automática 24h na sua carteira.</p></details>
   <details><summary>Em quanto tempo começa a entrega?</summary><p>O envio começa automaticamente em segundos após você confirmar o pedido.</p></details>
 </section>
 
@@ -182,12 +213,16 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
   <div class="toast-ico">👑</div>
   <div style="font-size:12px;line-height:1.4">
     <strong id="toast-nome" style="color:#fff;display:block">Lucas M. — São Paulo, SP</strong>
-    <span id="toast-acao" style="color:#fbbf24;font-weight:700">Comprou 1.000 Seguidores Instagram</span>
+    <span id="toast-acao" style="color:#fbbf24;font-weight:700">Comprou 5.000 Seguidores Instagram</span>
     <span id="toast-tempo" style="color:#71717a;display:block;font-size:11px">há 14 segundos</span>
   </div>
 </div>
 
 <script>
+function setSimQtd(v) {
+  document.getElementById('sim-qtd').value = v;
+  calcularSimulador();
+}
 function calcularSimulador() {
   const sel = document.getElementById('sim-srv');
   if (!sel || !sel.options.length) return;
@@ -203,12 +238,21 @@ function filtrarVitrine(plat, btn) {
     c.style.display = (plat === 'Todas' || c.dataset.plat === plat) ? 'flex' : 'none';
   });
 }
+let segs = 14 * 60 + 59;
+setInterval(() => {
+  if (segs <= 0) segs = 14 * 60 + 59;
+  segs--;
+  const m = String(Math.floor(segs / 60)).padStart(2, '0');
+  const s = String(segs % 60).padStart(2, '0');
+  const el = document.getElementById('promo-timer');
+  if (el) el.innerText = m + ':' + s;
+}, 1000);
 const compras = [
-  { nome: "Lucas M. — São Paulo, SP", acao: "Comprou 1.000 Seguidores Instagram BR", tempo: "há 12 segundos" },
-  { nome: "Camila S. — Recife, PE", acao: "Comprou 500 Curtidas Brasileiras", tempo: "há 27 segundos" },
-  { nome: "Gabriel R. — Curitiba, PR", acao: "Comprou 5.000 Visualizações Reels", tempo: "há 41 segundos" },
-  { nome: "Fernanda L. — Belo Horizonte, MG", acao: "Comprou 2.000 Seguidores Instagram", tempo: "há 1 minuto" },
-  { nome: "Matheus A. — Rio de Janeiro, RJ", acao: "Comprou 1.500 Seguidores TikTok", tempo: "há 1 minuto" }
+  { nome: "Lucas M. — São Paulo, SP", acao: "Comprou 5.000 Seguidores Instagram BR", tempo: "há 12 segundos" },
+  { nome: "Camila S. — Recife, PE", acao: "Comprou 2.500 Curtidas Brasileiras", tempo: "há 27 segundos" },
+  { nome: "Gabriel R. — Curitiba, PR", acao: "Comprou 10.000 Visualizações Reels", tempo: "há 41 segundos" },
+  { nome: "Fernanda L. — Belo Horizonte, MG", acao: "Recarregou R$ 100,00 via PIX", tempo: "há 1 minuto" },
+  { nome: "Matheus A. — Rio de Janeiro, RJ", acao: "Comprou 3.000 Seguidores TikTok", tempo: "há 1 minuto" }
 ];
 let idx = 0;
 function mostrarToast() {
@@ -222,8 +266,8 @@ function mostrarToast() {
   idx++;
 }
 calcularSimulador();
-setTimeout(mostrarToast, 2500);
-setInterval(mostrarToast, 9000);
+setTimeout(mostrarToast, 2200);
+setInterval(mostrarToast, 8500);
 </script>
 </body>
 </html>
