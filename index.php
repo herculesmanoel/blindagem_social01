@@ -9,7 +9,7 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Blindagem Social — Painel SMM VIP | Seguidores, Curtidas e Views</title>
-<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="estilo.css?v=5">
 </head>
 <body>
 
@@ -100,8 +100,8 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
       <span style="font-size:12px;color:#34d399;font-weight:800">⚡ Ativação imediata após o pedido</span>
     </div>
 
-    <div class="grid-3" style="align-items:end">
-      <div class="field" style="margin-bottom:0">
+    <div class="grid-3" style="align-items:stretch">
+      <div class="field" style="margin-bottom:0;background:#070709;border:1px solid #222228;padding:16px;border-radius:16px">
         <label>1. Escolha o Serviço</label>
         <select id="sim-srv" onchange="calcularSimulador()">
           <?php foreach ($servicos as $s): ?>
@@ -111,7 +111,7 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="field" style="margin-bottom:0">
+      <div class="field" style="margin-bottom:0;background:#070709;border:1px solid #222228;padding:16px;border-radius:16px">
         <label>2. Quantidade (ou clique rápido)</label>
         <input type="number" id="sim-qtd" value="2500" min="100" step="100" oninput="calcularSimulador()">
         <div class="quick-pills">
@@ -121,12 +121,12 @@ $servicos = $pdo->query("SELECT * FROM servicos WHERE ativo = 1 ORDER BY id ASC"
           <button type="button" class="q-pill" onclick="setSimQtd(10000)">10k 💎</button>
         </div>
       </div>
-      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;background:#050507;border:1px solid rgba(251,191,36,.45);padding:14px 18px;border-radius:16px">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;background:#070709;border:1px solid rgba(251,191,36,.45);padding:16px 18px;border-radius:16px">
         <div>
           <span style="font-size:11px;color:#a1a1aa;display:block">Total no PIX</span>
-          <strong id="sim-total" style="font-size:24px;color:#fbbf24">R$ 0,00</strong>
+          <strong id="sim-total" style="font-size:25px;color:#fbbf24">R$ 0,00</strong>
         </div>
-        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:12px 18px">Pedir Agora &rarr;</a>
+        <a href="<?= $user ? 'painel.php' : 'auth.php?modo=cadastro' ?>" class="btn btn-gold" style="padding:13px 20px">Pedir Agora &rarr;</a>
       </div>
     </div>
   </div>
